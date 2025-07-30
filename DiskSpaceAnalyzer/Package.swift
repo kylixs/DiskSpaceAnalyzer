@@ -64,6 +64,11 @@ let package = Package(
             name: "SessionManagerTests",
             dependencies: ["Core"],
             path: "Tests/SessionManagerTests"
+        ),
+        .testTarget(
+            name: "UserInterfaceTests",
+            dependencies: ["Core"],
+            path: "Tests/UserInterfaceTests"
         )
     ]
 )
