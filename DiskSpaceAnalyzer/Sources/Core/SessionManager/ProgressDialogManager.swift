@@ -234,7 +234,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     /// 处理应用程序错误
-    private func handleApplicationError(_ error: AppError) {
+    private func handleApplicationError(_ error: AppScanError) {
         logManager.error("Application error: \(error.localizedDescription)", category: "AppDelegate")
         
         // 对于严重错误，显示用户通知
@@ -251,7 +251,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     /// 处理错误恢复
-    private func handleErrorRecovery(_ error: AppError, strategy: ErrorRecoveryStrategy) {
+    private func handleErrorRecovery(_ error: AppScanError, strategy: ErrorRecoveryStrategy) {
         logManager.info("Handling error recovery: \(strategy)", category: "AppDelegate")
         
         switch strategy {
@@ -292,7 +292,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     /// 显示用户操作对话框
-    private func showUserActionDialog(for error: AppError) {
+    private func showUserActionDialog(for error: AppScanError) {
         DispatchQueue.main.async {
             let alert = NSAlert()
             alert.messageText = "需要用户操作"

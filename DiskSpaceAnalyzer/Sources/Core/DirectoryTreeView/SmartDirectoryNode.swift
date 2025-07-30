@@ -127,6 +127,20 @@ public class SmartDirectoryNode: ObservableObject, Identifiable {
         invalidateCache()
     }
     
+    /// 更新子节点（内部方法）
+    internal func updateChildren(_ newChildren: [SmartDirectoryNode]) {
+        children = newChildren
+        childrenLoaded = true
+        
+        // 更新父子关系
+        for child in children {
+            child.parent = self
+        }
+        
+        // 清除缓存
+        invalidateCache()
+    }
+    
     /// 添加子节点
     public func addChild(_ child: SmartDirectoryNode) {
         child.parent = self

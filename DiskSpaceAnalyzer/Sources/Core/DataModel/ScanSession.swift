@@ -7,10 +7,13 @@ public class ScanSession: ObservableObject, Identifiable, Codable {
     // MARK: - Properties
     
     /// 会话唯一标识符
-    public let id: UUID
+    public let id: String
     
-    /// 扫描路径
-    public let scanPath: String
+    /// 扫描根路径
+    public let rootPath: String
+    
+    /// 扫描配置
+    public let configuration: AppScanConfiguration
     
     /// 扫描开始时间
     public let startTime: Date
@@ -19,455 +22,288 @@ public class ScanSession: ObservableObject, Identifiable, Codable {
     @Published public var endTime: Date?
     
     /// 扫描状态
-    @Published public var status: ScanStatus
+    @Published public var state: AppScanStatus
     
-    /// 扫描进度
-    @Published public var progress: ScanProgress
+    /// 扫描进度 (0.0 - 1.0)
+    @Published public var progress: Double
+    
+    /// 当前扫描路径
+    @Published public var currentPath: String
     
     /// 扫描统计信息
-    @Published public var statistics: ScanStatistics
+    @Published public var statistics: AppScanStatistics?
     
     /// 根节点
     @Published public var rootNode: FileNode?
     
-    /// 错误记录
-    @Published public var errors: [ScanError] = []
+    /// 扫描错误列表
+    @Published public var errors: [AppScanError]
     
-    /// 会话配置
-    public let configuration: ScanConfiguration
+    /// 是否已取消
+    @Published public var isCancelled: Bool
     
     // MARK: - Computed Properties
     
-    /// 扫描持续时间
+    /// 扫描用时
     public var duration: TimeInterval {
-        let end = endTime ?? Date()
-        return end.timeIntervalSince(startTime)
+        return (endTime ?? Date()).timeIntervalSince(startTime)
     }
     
-    /// 是否正在进行中
+    /// 是否正在进行
     public var isActive: Bool {
-        switch status {
-        case .running, .paused:
-            return true
-        default:
-            return false
-        }
+        return state.isActive
     }
     
     /// 是否已完成
     public var isCompleted: Bool {
-        switch status {
-        case .completed:
-            return true
-        default:
-            return false
-        }
+        return state == .completed
+    }
+    
+    /// 是否有错误
+    public var hasErrors: Bool {
+        return !errors.isEmpty
+    }
+    
+    /// 严重错误数量
+    public var criticalErrorCount: Int {
+        return errors.filter { $0.severity >= .critical }.count
     }
     
     // MARK: - Initialization
     
-    /// 初始化扫描会话
-    /// - Parameters:
-    ///   - scanPath: 扫描路径
-    ///   - configuration: 扫描配置
-    public init(scanPath: String, configuration: ScanConfiguration = ScanConfiguration()) {
-        self.id = UUID()
-        self.scanPath = scanPath
-        self.startTime = Date()
-        self.status = .preparing
-        self.progress = ScanProgress()
-        self.statistics = ScanStatistics()
+    public init(id: String, rootPath: String, configuration: AppScanConfiguration) {
+        self.id = id
+        self.rootPath = rootPath
         self.configuration = configuration
+        self.startTime = Date()
+        self.endTime = nil
+        self.state = .preparing
+        self.progress = 0.0
+        self.currentPath = rootPath
+        self.statistics = nil
+        self.rootNode = nil
+        self.errors = []
+        self.isCancelled = false
     }
     
-    // MARK: - Public Methods
+    // MARK: - Codable
     
-    /// 开始扫描
-    public func start() {
-        guard status == .preparing else { return }
-        status = .running
-        progress.startTime = Date()
-    }
-    
-    /// 暂停扫描
-    public func pause() {
-        guard status == .running else { return }
-        status = .paused
-        progress.pausedTime = Date()
-    }
-    
-    /// 恢复扫描
-    public func resume() {
-        guard status == .paused else { return }
-        status = .running
-        if let pausedTime = progress.pausedTime {
-            progress.totalPausedDuration += Date().timeIntervalSince(pausedTime)
-        }
-        progress.pausedTime = nil
-    }
-    
-    /// 取消扫描
-    public func cancel() {
-        guard isActive else { return }
-        status = .cancelled
-        endTime = Date()
-    }
-    
-    /// 完成扫描
-    /// - Parameter rootNode: 扫描结果根节点
-    public func complete(with rootNode: FileNode?) {
-        guard status == .running else { return }
-        self.rootNode = rootNode
-        status = .completed
-        endTime = Date()
-        progress.percentage = 1.0
-    }
-    
-    /// 标记扫描失败
-    /// - Parameter error: 错误信息
-    public func fail(with error: ScanError) {
-        status = .failed(error)
-        endTime = Date()
-        addError(error)
-    }
-    
-    /// 更新进度
-    /// - Parameter newProgress: 新的进度信息
-    public func updateProgress(_ newProgress: ScanProgress) {
-        progress = newProgress
-    }
-    
-    /// 更新统计信息
-    /// - Parameter newStatistics: 新的统计信息
-    public func updateStatistics(_ newStatistics: ScanStatistics) {
-        statistics = newStatistics
-    }
-    
-    /// 添加错误记录
-    /// - Parameter error: 错误信息
-    public func addError(_ error: ScanError) {
-        errors.append(error)
-    }
-    
-    /// 清除错误记录
-    public func clearErrors() {
-        errors.removeAll()
-    }
-    
-    /// 获取会话摘要
-    /// - Returns: 会话摘要信息
-    public func getSummary() -> SessionSummary {
-        return SessionSummary(
-            id: id,
-            scanPath: scanPath,
-            status: status,
-            duration: duration,
-            totalFiles: statistics.totalFiles,
-            totalDirectories: statistics.totalDirectories,
-            totalSize: statistics.totalSize,
-            errorCount: errors.count
-        )
-    }
-    
-    // MARK: - Codable Support
-    
-    private enum CodingKeys: String, CodingKey {
-        case id, scanPath, startTime, endTime, status
-        case progress, statistics, rootNode, errors, configuration
+    enum CodingKeys: String, CodingKey {
+        case id, rootPath, configuration, startTime, endTime
+        case state, progress, currentPath, statistics
+        case errors, isCancelled
     }
     
     public required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        id = try container.decode(UUID.self, forKey: .id)
-        scanPath = try container.decode(String.self, forKey: .scanPath)
+        id = try container.decode(String.self, forKey: .id)
+        rootPath = try container.decode(String.self, forKey: .rootPath)
+        configuration = try container.decode(AppScanConfiguration.self, forKey: .configuration)
         startTime = try container.decode(Date.self, forKey: .startTime)
         endTime = try container.decodeIfPresent(Date.self, forKey: .endTime)
-        status = try container.decode(ScanStatus.self, forKey: .status)
-        progress = try container.decode(ScanProgress.self, forKey: .progress)
-        statistics = try container.decode(ScanStatistics.self, forKey: .statistics)
-        rootNode = try container.decodeIfPresent(FileNode.self, forKey: .rootNode)
-        errors = try container.decode([ScanError].self, forKey: .errors)
-        configuration = try container.decode(ScanConfiguration.self, forKey: .configuration)
+        state = try container.decode(AppScanStatus.self, forKey: .state)
+        progress = try container.decode(Double.self, forKey: .progress)
+        currentPath = try container.decode(String.self, forKey: .currentPath)
+        statistics = try container.decodeIfPresent(AppScanStatistics.self, forKey: .statistics)
+        errors = try container.decode([AppScanError].self, forKey: .errors)
+        isCancelled = try container.decode(Bool.self, forKey: .isCancelled)
+        
+        // rootNode 不参与序列化，需要重新构建
+        rootNode = nil
     }
     
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encode(id, forKey: .id)
-        try container.encode(scanPath, forKey: .scanPath)
+        try container.encode(rootPath, forKey: .rootPath)
+        try container.encode(configuration, forKey: .configuration)
         try container.encode(startTime, forKey: .startTime)
         try container.encodeIfPresent(endTime, forKey: .endTime)
-        try container.encode(status, forKey: .status)
+        try container.encode(state, forKey: .state)
         try container.encode(progress, forKey: .progress)
-        try container.encode(statistics, forKey: .statistics)
-        try container.encodeIfPresent(rootNode, forKey: .rootNode)
+        try container.encode(currentPath, forKey: .currentPath)
+        try container.encodeIfPresent(statistics, forKey: .statistics)
         try container.encode(errors, forKey: .errors)
-        try container.encode(configuration, forKey: .configuration)
+        try container.encode(isCancelled, forKey: .isCancelled)
     }
-}
-
-// MARK: - Supporting Types
-
-/// 扫描状态
-public enum ScanStatus: Codable {
-    case preparing
-    case running
-    case paused
-    case completed
-    case cancelled
-    case failed(ScanError)
     
-    public var description: String {
-        switch self {
-        case .preparing:
-            return "准备中"
-        case .running:
-            return "扫描中"
-        case .paused:
-            return "已暂停"
-        case .completed:
-            return "已完成"
-        case .cancelled:
-            return "已取消"
-        case .failed:
-            return "扫描失败"
+    // MARK: - Public Methods
+    
+    /// 开始扫描
+    public func start() {
+        state = .scanning
+        progress = 0.0
+        currentPath = rootPath
+        isCancelled = false
+        
+        // 初始化统计信息
+        statistics = AppScanStatistics()
+        
+        print("🚀 扫描会话开始: \(rootPath)")
+    }
+    
+    /// 更新进度
+    public func updateProgress(_ newProgress: Double, currentPath: String) {
+        progress = max(0.0, min(1.0, newProgress))
+        self.currentPath = currentPath
+        
+        // 更新统计信息的时间
+        statistics?.endTime = Date()
+    }
+    
+    /// 更新统计信息
+    public func updateStatistics(_ newStatistics: AppScanStatistics) {
+        statistics = newStatistics
+    }
+    
+    /// 添加错误
+    public func addError(_ error: AppScanError) {
+        errors.append(error)
+        
+        // 如果是严重错误，考虑暂停扫描
+        if error.severity >= .critical {
+            print("🚨 严重错误: \(error.message)")
         }
     }
-}
-
-/// 扫描进度
-public struct ScanProgress: Codable {
-    /// 进度百分比 (0.0 - 1.0)
-    public var percentage: Double = 0.0
     
-    /// 已处理文件数
-    public var processedFiles: Int = 0
-    
-    /// 总文件数（预估）
-    public var totalFiles: Int?
-    
-    /// 当前扫描路径
-    public var currentPath: String = ""
-    
-    /// 已处理字节数
-    public var bytesProcessed: Int64 = 0
-    
-    /// 预估剩余时间（秒）
-    public var estimatedTimeRemaining: TimeInterval?
-    
-    /// 扫描速度（文件/秒）
-    public var scanSpeed: Double = 0.0
-    
-    /// 开始时间
-    public var startTime: Date?
-    
-    /// 暂停时间
-    public var pausedTime: Date?
-    
-    /// 总暂停时长
-    public var totalPausedDuration: TimeInterval = 0.0
-    
-    public init() {}
-    
-    /// 实际扫描时长（排除暂停时间）
-    public var actualScanDuration: TimeInterval {
-        guard let startTime = startTime else { return 0 }
-        let now = Date()
-        let totalDuration = now.timeIntervalSince(startTime)
-        return totalDuration - totalPausedDuration
-    }
-}
-
-/// 扫描统计信息
-public struct ScanStatistics: Codable {
-    /// 总文件数
-    public var totalFiles: Int = 0
-    
-    /// 总目录数
-    public var totalDirectories: Int = 0
-    
-    /// 总大小（字节）
-    public var totalSize: Int64 = 0
-    
-    /// 最大深度
-    public var maxDepth: Int = 0
-    
-    /// 最大文件大小
-    public var maxFileSize: Int64 = 0
-    
-    /// 平均文件大小
-    public var averageFileSize: Int64 {
-        return totalFiles > 0 ? totalSize / Int64(totalFiles) : 0
+    /// 暂停扫描
+    public func pause() {
+        guard state == .scanning else { return }
+        state = .paused
+        print("⏸️ 扫描会话暂停: \(rootPath)")
     }
     
-    /// 文件类型分布
-    public var fileTypeDistribution: [String: Int] = [:]
-    
-    /// 大小分布
-    public var sizeDistribution: SizeDistribution = SizeDistribution()
-    
-    public init() {}
-    
-    /// 格式化的总大小
-    public var formattedTotalSize: String {
-        return ByteCountFormatter.string(fromByteCount: totalSize, countStyle: .file)
+    /// 恢复扫描
+    public func resume() {
+        guard state == .paused else { return }
+        state = .scanning
+        print("▶️ 扫描会话恢复: \(rootPath)")
     }
-}
-
-/// 大小分布统计
-public struct SizeDistribution: Codable {
-    public var tiny: Int = 0      // < 1KB
-    public var small: Int = 0     // 1KB - 1MB
-    public var medium: Int = 0    // 1MB - 100MB
-    public var large: Int = 0     // 100MB - 1GB
-    public var huge: Int = 0      // > 1GB
     
-    public init() {}
+    /// 取消扫描
+    public func cancel() {
+        isCancelled = true
+        state = .cancelled
+        endTime = Date()
+        
+        // 添加取消错误
+        let cancelError = AppScanError.scanCancelled()
+        addError(cancelError)
+        
+        print("⏹️ 扫描会话取消: \(rootPath)")
+    }
     
-    /// 更新分布统计
-    /// - Parameter size: 文件大小
-    public mutating func update(with size: Int64) {
-        switch size {
-        case 0..<1024:
-            tiny += 1
-        case 1024..<(1024*1024):
-            small += 1
-        case (1024*1024)..<(100*1024*1024):
-            medium += 1
-        case (100*1024*1024)..<(1024*1024*1024):
-            large += 1
-        default:
-            huge += 1
+    /// 完成扫描
+    public func complete(rootNode: FileNode?) {
+        state = .completed
+        endTime = Date()
+        progress = 1.0
+        self.rootNode = rootNode
+        
+        // 完成统计信息
+        statistics?.complete()
+        
+        print("✅ 扫描会话完成: \(rootPath)")
+        print("📊 统计: \(statistics?.totalFiles ?? 0) 文件, \(AppByteFormatter.shared.string(fromByteCount: statistics?.totalSize ?? 0))")
+    }
+    
+    /// 标记为失败
+    public func fail(error: AppScanError) {
+        state = .failed
+        endTime = Date()
+        addError(error)
+        
+        print("❌ 扫描会话失败: \(rootPath) - \(error.message)")
+    }
+    
+    /// 获取会话摘要
+    public func getSummary() -> String {
+        var summary = "扫描会话摘要\n"
+        summary += "ID: \(id)\n"
+        summary += "路径: \(rootPath)\n"
+        summary += "状态: \(state.displayName)\n"
+        summary += "进度: \(String(format: "%.1f%%", progress * 100))\n"
+        summary += "用时: \(AppTimeFormatter.shared.string(from: duration))\n"
+        
+        if let stats = statistics {
+            summary += "文件数: \(AppNumberFormatter.shared.string(from: stats.totalFiles))\n"
+            summary += "文件夹数: \(AppNumberFormatter.shared.string(from: stats.totalDirectories))\n"
+            summary += "总大小: \(AppByteFormatter.shared.string(fromByteCount: stats.totalSize))\n"
         }
+        
+        if hasErrors {
+            summary += "错误数: \(errors.count) (严重: \(criticalErrorCount))\n"
+        }
+        
+        return summary
+    }
+    
+    /// 导出详细报告
+    public func exportDetailedReport() -> String {
+        var report = "=== 扫描会话详细报告 ===\n\n"
+        
+        report += "会话信息:\n"
+        report += "ID: \(id)\n"
+        report += "扫描路径: \(rootPath)\n"
+        report += "开始时间: \(startTime)\n"
+        if let endTime = endTime {
+            report += "结束时间: \(endTime)\n"
+        }
+        report += "状态: \(state.displayName)\n"
+        report += "进度: \(String(format: "%.2f%%", progress * 100))\n"
+        report += "用时: \(AppTimeFormatter.shared.string(from: duration))\n"
+        report += "是否取消: \(isCancelled ? "是" : "否")\n\n"
+        
+        // 配置信息
+        report += "扫描配置:\n"
+        report += "跟随符号链接: \(configuration.followSymlinks ? "是" : "否")\n"
+        report += "包含隐藏文件: \(configuration.includeHiddenFiles ? "是" : "否")\n"
+        report += "最大深度: \(configuration.maxDepth == 0 ? "无限制" : "\(configuration.maxDepth)")\n"
+        report += "最小文件大小: \(AppByteFormatter.shared.string(fromByteCount: configuration.minFileSize))\n"
+        if configuration.maxFileSize > 0 {
+            report += "最大文件大小: \(AppByteFormatter.shared.string(fromByteCount: configuration.maxFileSize))\n"
+        }
+        report += "排除扩展名: \(configuration.excludedExtensions.isEmpty ? "无" : Array(configuration.excludedExtensions).joined(separator: ", "))\n"
+        report += "排除目录: \(configuration.excludedDirectories.isEmpty ? "无" : Array(configuration.excludedDirectories).joined(separator: ", "))\n\n"
+        
+        // 统计信息
+        if let stats = statistics {
+            report += "统计信息:\n"
+            report += "总文件数: \(AppNumberFormatter.shared.string(from: stats.totalFiles))\n"
+            report += "总文件夹数: \(AppNumberFormatter.shared.string(from: stats.totalDirectories))\n"
+            report += "总大小: \(AppByteFormatter.shared.string(fromByteCount: stats.totalSize))\n"
+            report += "平均文件大小: \(AppByteFormatter.shared.string(fromByteCount: stats.averageFileSize))\n"
+            report += "最大文件大小: \(AppByteFormatter.shared.string(fromByteCount: stats.maxFileSize))\n"
+            report += "最大深度: \(stats.maxDepth)\n"
+            report += "扫描速度: \(String(format: "%.1f", stats.scanSpeed)) 文件/秒\n\n"
+        }
+        
+        // 错误信息
+        if hasErrors {
+            report += "错误信息 (\(errors.count) 个):\n"
+            for (index, error) in errors.enumerated() {
+                report += "\n[\(index + 1)] \(error.title)\n"
+                report += "严重程度: \(error.severity.displayName)\n"
+                report += "类别: \(error.category.displayName)\n"
+                report += "消息: \(error.message)\n"
+                if let filePath = error.filePath {
+                    report += "文件: \(filePath)\n"
+                }
+                report += "时间: \(error.timestamp)\n"
+            }
+            report += "\n"
+        }
+        
+        return report
     }
 }
 
-/// 扫描错误
-public struct ScanError: Codable, Error, Identifiable, Equatable {
-    public let id: UUID
-    public let path: String
-    public let message: String
-    public let errorCode: Int
-    public let timestamp: Date
-    public let severity: ErrorSeverity
-    
-    public init(
-        path: String,
-        message: String,
-        errorCode: Int = 0,
-        severity: ErrorSeverity = .warning
-    ) {
-        self.id = UUID()
-        self.path = path
-        self.message = message
-        self.errorCode = errorCode
-        self.timestamp = Date()
-        self.severity = severity
-    }
-    
-    public static func == (lhs: ScanError, rhs: ScanError) -> Bool {
+// MARK: - Equatable
+
+extension ScanSession: Equatable {
+    public static func == (lhs: ScanSession, rhs: ScanSession) -> Bool {
         return lhs.id == rhs.id
-    }
-}
-
-/// 错误严重程度
-public enum ErrorSeverity: String, Codable, CaseIterable {
-    case info = "info"
-    case warning = "warning"
-    case error = "error"
-    case critical = "critical"
-    
-    public var description: String {
-        switch self {
-        case .info:
-            return "信息"
-        case .warning:
-            return "警告"
-        case .error:
-            return "错误"
-        case .critical:
-            return "严重错误"
-        }
-    }
-}
-
-/// 扫描配置
-public struct ScanConfiguration: Codable {
-    /// 是否跟随符号链接
-    public let followSymlinks: Bool
-    
-    /// 是否包含隐藏文件
-    public let includeHiddenFiles: Bool
-    
-    /// 最大扫描深度
-    public let maxDepth: Int?
-    
-    /// 排除模式
-    public let excludePatterns: [String]
-    
-    /// 包含模式
-    public let includePatterns: [String]
-    
-    /// 是否启用文件过滤
-    public let enableFileFiltering: Bool
-    
-    public init(
-        followSymlinks: Bool = false,
-        includeHiddenFiles: Bool = false,
-        maxDepth: Int? = nil,
-        excludePatterns: [String] = [],
-        includePatterns: [String] = [],
-        enableFileFiltering: Bool = true
-    ) {
-        self.followSymlinks = followSymlinks
-        self.includeHiddenFiles = includeHiddenFiles
-        self.maxDepth = maxDepth
-        self.excludePatterns = excludePatterns
-        self.includePatterns = includePatterns
-        self.enableFileFiltering = enableFileFiltering
-    }
-}
-
-/// 会话摘要
-public struct SessionSummary: Identifiable {
-    public let id: UUID
-    public let scanPath: String
-    public let status: ScanStatus
-    public let duration: TimeInterval
-    public let totalFiles: Int
-    public let totalDirectories: Int
-    public let totalSize: Int64
-    public let errorCount: Int
-    
-    /// 格式化的持续时间
-    public var formattedDuration: String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = [.hour, .minute, .second]
-        formatter.unitsStyle = .abbreviated
-        return formatter.string(from: duration) ?? "0s"
-    }
-    
-    /// 格式化的总大小
-    public var formattedTotalSize: String {
-        return ByteCountFormatter.string(fromByteCount: totalSize, countStyle: .file)
-    }
-}
-
-// 添加ScanStatus的Equatable实现
-extension ScanStatus: Equatable {
-    public static func == (lhs: ScanStatus, rhs: ScanStatus) -> Bool {
-        switch (lhs, rhs) {
-        case (.preparing, .preparing),
-             (.running, .running),
-             (.paused, .paused),
-             (.completed, .completed),
-             (.cancelled, .cancelled):
-            return true
-        case (.failed(let lhsError), .failed(let rhsError)):
-            return lhsError == rhsError
-        default:
-            return false
-        }
     }
 }

@@ -96,19 +96,19 @@ echo "   构建配置: Release"
 echo "   目标平台: macOS 10.15+"
 echo "   架构: $(uname -m)"
 
-# 可选：打开构建目录
-if command -v open >/dev/null 2>&1; then
-    echo ""
-    read -p "是否打开构建目录？(y/n): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        open "$BUILD_DIR"
-    fi
-fi
-
 echo ""
 echo "🚀 要运行应用程序，请执行："
 echo "   open $BUILD_DIR/$APP_NAME"
 echo ""
 echo "或者直接运行可执行文件："
 echo "   .build/release/$EXECUTABLE_NAME"
+
+# 可选：打开构建目录
+# if command -v open >/dev/null 2>&1; then
+#     echo ""
+#     read -p "是否打开构建目录？(y/n): " -n 1 -r
+#     echo
+#     if [[ $REPLY =~ ^[Yy]$ ]]; then
+#         open "$BUILD_DIR"
+#     fi
+# fi

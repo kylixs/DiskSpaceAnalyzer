@@ -22,7 +22,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "DiskSpaceAnalyzer",
-            dependencies: [],
+            dependencies: ["Core"],
             path: "Sources/DiskSpaceAnalyzer"
         ),
         .target(

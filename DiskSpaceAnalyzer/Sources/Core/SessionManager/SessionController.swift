@@ -1,18 +1,6 @@
 import Foundation
 import Combine
 
-/// 会话状态
-public enum SessionState {
-    case created        // 已创建
-    case preparing      // 准备中
-    case scanning       // 扫描中
-    case processing     // 处理中
-    case completed      // 已完成
-    case paused         // 已暂停
-    case cancelled      // 已取消
-    case failed         // 失败
-}
-
 /// 会话优先级
 public enum SessionPriority: Int, CaseIterable, Comparable {
     case low = 0
@@ -23,100 +11,50 @@ public enum SessionPriority: Int, CaseIterable, Comparable {
     public static func < (lhs: SessionPriority, rhs: SessionPriority) -> Bool {
         return lhs.rawValue < rhs.rawValue
     }
-}
-
-/// 扫描会话
-public class ScanSession: ObservableObject, Identifiable {
     
-    // MARK: - Properties
-    
-    public let id: UUID
-    public let rootPath: String
-    public let priority: SessionPriority
-    public let createdAt: Date
-    
-    @Published public private(set) var state: SessionState = .created
-    @Published public private(set) var progress: Double = 0.0
-    @Published public private(set) var currentPath: String = ""
-    @Published public private(set) var statistics: ScanStatistics?
-    @Published public private(set) var error: Error?
-    
-    public var startedAt: Date?
-    public var completedAt: Date?
-    
-    /// 会话数据
-    public var rootNode: FileNode?
-    public var treeMapLayout: TreeMapLayoutResult?
-    
-    /// 执行时长
-    public var executionDuration: TimeInterval? {
-        guard let startTime = startedAt else { return nil }
-        let endTime = completedAt ?? Date()
-        return endTime.timeIntervalSince(startTime)
-    }
-    
-    /// 等待时长
-    public var waitingDuration: TimeInterval {
-        let startTime = startedAt ?? Date()
-        return startTime.timeIntervalSince(createdAt)
-    }
-    
-    // MARK: - Initialization
-    
-    public init(id: UUID = UUID(), rootPath: String, priority: SessionPriority = .normal) {
-        self.id = id
-        self.rootPath = rootPath
-        self.priority = priority
-        self.createdAt = Date()
-    }
-    
-    // MARK: - Public Methods
-    
-    /// 更新状态
-    internal func updateState(_ newState: SessionState) {
-        DispatchQueue.main.async {
-            self.state = newState
-            
-            switch newState {
-            case .scanning:
-                if self.startedAt == nil {
-                    self.startedAt = Date()
-                }
-            case .completed, .cancelled, .failed:
-                if self.completedAt == nil {
-                    self.completedAt = Date()
-                }
-            default:
-                break
-            }
-        }
-    }
-    
-    /// 更新进度
-    internal func updateProgress(_ newProgress: Double, currentPath: String = "") {
-        DispatchQueue.main.async {
-            self.progress = max(0.0, min(1.0, newProgress))
-            self.currentPath = currentPath
-        }
-    }
-    
-    /// 更新统计信息
-    internal func updateStatistics(_ stats: ScanStatistics) {
-        DispatchQueue.main.async {
-            self.statistics = stats
-        }
-    }
-    
-    /// 设置错误
-    internal func setError(_ error: Error) {
-        DispatchQueue.main.async {
-            self.error = error
-            self.state = .failed
+    public var displayName: String {
+        switch self {
+        case .low: return "低"
+        case .normal: return "普通"
+        case .high: return "高"
+        case .urgent: return "紧急"
         }
     }
 }
 
-/// 会话控制器 - 管理扫描会话的完整生命周期
+/// 会话状态
+public enum SessionState: String, CaseIterable {
+    case created = "created"
+    case queued = "queued"
+    case running = "running"
+    case paused = "paused"
+    case completed = "completed"
+    case failed = "failed"
+    case cancelled = "cancelled"
+    
+    public var displayName: String {
+        switch self {
+        case .created: return "已创建"
+        case .queued: return "队列中"
+        case .running: return "运行中"
+        case .paused: return "已暂停"
+        case .completed: return "已完成"
+        case .failed: return "失败"
+        case .cancelled: return "已取消"
+        }
+    }
+    
+    public var isActive: Bool {
+        switch self {
+        case .running, .queued:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
+/// 会话控制器 - 管理扫描会话的生命周期
 public class SessionController: ObservableObject {
     
     // MARK: - Properties
@@ -124,405 +62,294 @@ public class SessionController: ObservableObject {
     /// 单例实例
     public static let shared = SessionController()
     
-    /// 活动会话
+    /// 活动会话列表
     @Published public private(set) var activeSessions: [ScanSession] = []
     
     /// 会话历史
     @Published public private(set) var sessionHistory: [ScanSession] = []
     
-    /// 当前会话
-    @Published public private(set) var currentSession: ScanSession?
-    
     /// 最大并发会话数
-    public var maxConcurrentSessions: Int = 2
+    public let maxConcurrentSessions: Int
     
     /// 会话队列
     private var sessionQueue: [ScanSession] = []
     
-    /// 访问锁
-    private let accessLock = NSLock()
-    
-    /// 扫描引擎
-    private let scanEngine: ScanEngine
-    
-    /// TreeMap可视化
-    private let treeMapVisualization: TreeMapVisualization
-    
-    /// 目录树视图
-    private let directoryTreeView: DirectoryTreeView
-    
-    /// 数据持久化
-    private let dataPersistence: DataPersistence
+    /// 线程安全队列
+    private let queue = DispatchQueue(label: "SessionController", qos: .userInitiated)
     
     /// 取消令牌
     private var cancellables = Set<AnyCancellable>()
     
-    /// 会话完成回调
-    public var sessionCompletionCallback: ((ScanSession) -> Void)?
-    
-    /// 会话失败回调
-    public var sessionFailureCallback: ((ScanSession, Error) -> Void)?
-    
-    /// 会话进度回调
-    public var sessionProgressCallback: ((ScanSession, Double) -> Void)?
-    
     // MARK: - Initialization
     
     private init() {
-        self.scanEngine = ScanEngine.shared
-        self.treeMapVisualization = TreeMapVisualization.shared
-        self.directoryTreeView = DirectoryTreeView.shared
-        self.dataPersistence = DataPersistence()
-        
-        setupIntegration()
-        loadSessionHistory()
+        self.maxConcurrentSessions = AppConstants.maxConcurrentScans
+        setupSessionMonitoring()
     }
     
     // MARK: - Public Methods
     
     /// 创建新会话
-    public func createSession(rootPath: String, priority: SessionPriority = .normal) -> ScanSession {
-        let session = ScanSession(rootPath: rootPath, priority: priority)
-        
-        accessLock.lock()
-        sessionQueue.append(session)
-        sessionQueue.sort { $0.priority > $1.priority }
-        accessLock.unlock()
-        
-        scheduleNextSession()
-        
-        return session
+    public func createSession(rootPath: String, configuration: AppScanConfiguration = .default, priority: SessionPriority = .normal) -> ScanSession {
+        return queue.sync {
+            let session = ScanSession(
+                id: UUID().uuidString,
+                rootPath: rootPath,
+                configuration: configuration
+            )
+            
+            // 添加到队列
+            sessionQueue.append(session)
+            
+            // 尝试启动会话
+            processSessionQueue()
+            
+            print("📝 创建扫描会话: \(rootPath)")
+            return session
+        }
     }
     
-    /// 开始会话
+    /// 启动会话
     public func startSession(_ session: ScanSession) {
-        guard session.state == .created else { return }
-        
-        session.updateState(.preparing)
-        
-        // 检查路径有效性
-        guard FileManager.default.fileExists(atPath: session.rootPath) else {
-            let error = NSError(domain: "SessionController", code: 1001, userInfo: [
-                NSLocalizedDescriptionKey: "指定的路径不存在: \(session.rootPath)"
-            ])
-            session.setError(error)
-            sessionFailureCallback?(session, error)
-            return
-        }
-        
-        // 添加到活动会话
-        accessLock.lock()
-        activeSessions.append(session)
-        currentSession = session
-        accessLock.unlock()
-        
-        // 开始扫描
-        session.updateState(.scanning)
-        
-        let taskId = scanEngine.startScan(at: session.rootPath, priority: .normal)
-        
-        // 监听扫描进度
-        scanEngine.progressUpdateCallback = { [weak self, weak session] stats in
-            guard let session = session else { return }
-            session.updateProgress(stats.progressPercentage, currentPath: "")
-            self?.sessionProgressCallback?(session, stats.progressPercentage)
-        }
-        
-        // 监听扫描完成
-        scanEngine.scanCompletionCallback = { [weak self, weak session] stats in
-            guard let session = session else { return }
-            self?.handleScanCompletion(session: session, statistics: stats)
-        }
-        
-        // 监听扫描错误
-        scanEngine.scanErrorCallback = { [weak self, weak session] error in
-            guard let session = session else { return }
-            self?.handleScanError(session: session, error: error)
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            
+            // 检查是否可以启动
+            if self.activeSessions.count < self.maxConcurrentSessions {
+                self.activeSessions.append(session)
+                
+                DispatchQueue.main.async {
+                    session.start()
+                }
+                
+                print("🚀 启动扫描会话: \(session.rootPath)")
+            } else {
+                print("⏳ 会话加入队列: \(session.rootPath)")
+            }
         }
     }
     
     /// 暂停会话
-    public func pauseSession(_ session: ScanSession) -> Bool {
-        guard session.state == .scanning else { return false }
-        
-        session.updateState(.paused)
-        // 这里可以暂停扫描引擎
-        return true
+    public func pauseSession(_ session: ScanSession) {
+        queue.async {
+            DispatchQueue.main.async {
+                session.pause()
+            }
+            print("⏸️ 暂停扫描会话: \(session.rootPath)")
+        }
     }
     
     /// 恢复会话
-    public func resumeSession(_ session: ScanSession) -> Bool {
-        guard session.state == .paused else { return false }
-        
-        session.updateState(.scanning)
-        // 这里可以恢复扫描引擎
-        return true
+    public func resumeSession(_ session: ScanSession) {
+        queue.async {
+            DispatchQueue.main.async {
+                session.resume()
+            }
+            print("▶️ 恢复扫描会话: \(session.rootPath)")
+        }
     }
     
     /// 取消会话
-    public func cancelSession(_ session: ScanSession) -> Bool {
-        guard session.state == .scanning || session.state == .paused else { return false }
-        
-        session.updateState(.cancelled)
-        
-        // 从活动会话中移除
-        accessLock.lock()
-        activeSessions.removeAll { $0.id == session.id }
-        if currentSession?.id == session.id {
-            currentSession = nil
+    public func cancelSession(_ session: ScanSession) {
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                session.cancel()
+            }
+            
+            // 从活动会话中移除
+            self.activeSessions.removeAll { $0.id == session.id }
+            
+            // 添加到历史
+            self.sessionHistory.append(session)
+            
+            // 处理队列中的下一个会话
+            self.processSessionQueue()
+            
+            print("⏹️ 取消扫描会话: \(session.rootPath)")
         }
-        accessLock.unlock()
-        
-        // 添加到历史
-        addToHistory(session)
-        
-        // 调度下一个会话
-        scheduleNextSession()
-        
-        return true
+    }
+    
+    /// 完成会话
+    public func completeSession(_ session: ScanSession, rootNode: FileNode?) {
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                session.complete(rootNode: rootNode)
+            }
+            
+            // 从活动会话中移除
+            self.activeSessions.removeAll { $0.id == session.id }
+            
+            // 添加到历史
+            self.sessionHistory.append(session)
+            
+            // 处理队列中的下一个会话
+            self.processSessionQueue()
+            
+            print("✅ 完成扫描会话: \(session.rootPath)")
+        }
+    }
+    
+    /// 会话失败
+    public func failSession(_ session: ScanSession, error: AppScanError) {
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                session.fail(error: error)
+            }
+            
+            // 从活动会话中移除
+            self.activeSessions.removeAll { $0.id == session.id }
+            
+            // 添加到历史
+            self.sessionHistory.append(session)
+            
+            // 处理队列中的下一个会话
+            self.processSessionQueue()
+            
+            print("❌ 会话失败: \(session.rootPath) - \(error.message)")
+        }
     }
     
     /// 获取会话
-    public func getSession(id: UUID) -> ScanSession? {
-        accessLock.lock()
-        defer { accessLock.unlock() }
-        
-        return activeSessions.first { $0.id == id } ?? sessionHistory.first { $0.id == id }
-    }
-    
-    /// 获取活动会话
-    public func getActiveSessions() -> [ScanSession] {
-        accessLock.lock()
-        defer { accessLock.unlock() }
-        
-        return activeSessions
-    }
-    
-    /// 获取会话历史
-    public func getSessionHistory(limit: Int = 50) -> [ScanSession] {
-        accessLock.lock()
-        defer { accessLock.unlock() }
-        
-        let sortedHistory = sessionHistory.sorted { $0.createdAt > $1.createdAt }
-        return Array(sortedHistory.prefix(limit))
-    }
-    
-    /// 清除会话历史
-    public func clearSessionHistory() {
-        accessLock.lock()
-        defer { accessLock.unlock() }
-        
-        sessionHistory.removeAll()
-        saveSessionHistory()
-    }
-    
-    /// 保存会话
-    public func saveSession(_ session: ScanSession) {
-        guard let rootNode = session.rootNode else { return }
-        
-        let fileName = "session_\(session.id.uuidString).json"
-        
-        do {
-            try dataPersistence.saveData(rootNode, to: fileName)
-        } catch {
-            LogManager.shared.log("Failed to save session: \(error)", level: .error)
+    public func getSession(id: String) -> ScanSession? {
+        return queue.sync {
+            return activeSessions.first { $0.id == id } ?? 
+                   sessionHistory.first { $0.id == id }
         }
     }
     
-    /// 加载会话
-    public func loadSession(id: UUID) -> ScanSession? {
-        let fileName = "session_\(id.uuidString).json"
-        
-        do {
-            let rootNode: FileNode = try dataPersistence.loadData(from: fileName)
+    /// 获取活动会话数量
+    public func getActiveSessionCount() -> Int {
+        return queue.sync { activeSessions.count }
+    }
+    
+    /// 获取队列中的会话数量
+    public func getQueuedSessionCount() -> Int {
+        return queue.sync { sessionQueue.count }
+    }
+    
+    /// 清理历史会话
+    public func clearHistory() {
+        queue.async { [weak self] in
+            DispatchQueue.main.async {
+                self?.sessionHistory.removeAll()
+            }
+            print("🧹 清理会话历史")
+        }
+    }
+    
+    /// 取消所有会话
+    public func cancelAllSessions() {
+        queue.async { [weak self] in
+            guard let self = self else { return }
             
-            // 创建会话并设置数据
-            let session = ScanSession(id: id, rootPath: rootNode.path)
-            session.rootNode = rootNode
-            session.updateState(.completed)
+            // 取消活动会话
+            for session in self.activeSessions {
+                DispatchQueue.main.async {
+                    session.cancel()
+                }
+            }
             
-            return session
-        } catch {
-            LogManager.shared.log("Failed to load session: \(error)", level: .error)
-            return nil
+            // 清空队列
+            self.sessionQueue.removeAll()
+            
+            // 移动到历史
+            self.sessionHistory.append(contentsOf: self.activeSessions)
+            self.activeSessions.removeAll()
+            
+            print("🛑 取消所有扫描会话")
+        }
+    }
+    
+    /// 导出会话报告
+    public func exportSessionReport() -> String {
+        return queue.sync {
+            var report = "=== 会话控制器报告 ===\n\n"
+            
+            report += "生成时间: \(Date())\n"
+            report += "活动会话数: \(activeSessions.count)\n"
+            report += "队列会话数: \(sessionQueue.count)\n"
+            report += "历史会话数: \(sessionHistory.count)\n"
+            report += "最大并发数: \(maxConcurrentSessions)\n\n"
+            
+            // 活动会话
+            if !activeSessions.isEmpty {
+                report += "=== 活动会话 ===\n"
+                for session in activeSessions {
+                    report += "\n\(session.getSummary())\n"
+                }
+            }
+            
+            // 队列会话
+            if !sessionQueue.isEmpty {
+                report += "=== 队列会话 ===\n"
+                for session in sessionQueue {
+                    report += "\n\(session.getSummary())\n"
+                }
+            }
+            
+            // 最近的历史会话
+            if !sessionHistory.isEmpty {
+                report += "=== 最近历史会话 ===\n"
+                let recentHistory = Array(sessionHistory.suffix(5))
+                for session in recentHistory {
+                    report += "\n\(session.getSummary())\n"
+                }
+            }
+            
+            return report
         }
     }
     
     // MARK: - Private Methods
     
-    /// 设置模块集成
-    private func setupIntegration() {
-        // 这里可以设置各模块间的集成逻辑
+    /// 设置会话监控
+    private func setupSessionMonitoring() {
+        // 监控内存使用
+        NotificationCenter.default.publisher(for: AppNotificationNames.memoryWarning)
+            .sink { [weak self] _ in
+                self?.handleMemoryWarning()
+            }
+            .store(in: &cancellables)
     }
     
-    /// 调度下一个会话
-    private func scheduleNextSession() {
-        accessLock.lock()
-        defer { accessLock.unlock() }
-        
-        // 检查是否有空闲槽位
-        guard activeSessions.count < maxConcurrentSessions else { return }
-        
-        // 获取下一个待执行的会话
-        guard let nextSession = sessionQueue.first(where: { $0.state == .created }) else { return }
-        
-        // 从队列中移除
-        sessionQueue.removeAll { $0.id == nextSession.id }
-        
-        // 开始执行
-        startSession(nextSession)
-    }
-    
-    /// 处理扫描完成
-    private func handleScanCompletion(session: ScanSession, statistics: ScanStatistics) {
-        session.updateStatistics(statistics)
-        session.updateState(.processing)
-        
-        // 这里可以进行数据处理
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            // 模拟数据处理
-            Thread.sleep(forTimeInterval: 0.5)
+    /// 处理会话队列
+    private func processSessionQueue() {
+        while activeSessions.count < maxConcurrentSessions && !sessionQueue.isEmpty {
+            let nextSession = sessionQueue.removeFirst()
+            activeSessions.append(nextSession)
             
             DispatchQueue.main.async {
-                session.updateState(.completed)
-                self?.completeSession(session)
+                nextSession.start()
+            }
+            
+            print("🎯 从队列启动会话: \(nextSession.rootPath)")
+        }
+    }
+    
+    /// 处理内存警告
+    private func handleMemoryWarning() {
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            
+            // 暂停低优先级的会话
+            let lowPrioritySessions = self.activeSessions.filter { session in
+                // 这里需要根据实际的优先级属性来判断
+                // 暂时使用简单的逻辑
+                return self.activeSessions.count > 1
+            }
+            
+            for session in lowPrioritySessions.prefix(1) {
+                DispatchQueue.main.async {
+                    session.pause()
+                }
+                print("⚠️ 内存警告，暂停会话: \(session.rootPath)")
             }
         }
-    }
-    
-    /// 处理扫描错误
-    private func handleScanError(session: ScanSession, error: Error) {
-        session.setError(error)
-        
-        // 从活动会话中移除
-        accessLock.lock()
-        activeSessions.removeAll { $0.id == session.id }
-        if currentSession?.id == session.id {
-            currentSession = nil
-        }
-        accessLock.unlock()
-        
-        // 添加到历史
-        addToHistory(session)
-        
-        // 通知错误
-        sessionFailureCallback?(session, error)
-        
-        // 调度下一个会话
-        scheduleNextSession()
-    }
-    
-    /// 完成会话
-    private func completeSession(_ session: ScanSession) {
-        // 保存会话数据
-        saveSession(session)
-        
-        // 从活动会话中移除
-        accessLock.lock()
-        activeSessions.removeAll { $0.id == session.id }
-        if currentSession?.id == session.id {
-            currentSession = nil
-        }
-        accessLock.unlock()
-        
-        // 添加到历史
-        addToHistory(session)
-        
-        // 通知完成
-        sessionCompletionCallback?(session)
-        
-        // 调度下一个会话
-        scheduleNextSession()
-    }
-    
-    /// 添加到历史
-    private func addToHistory(_ session: ScanSession) {
-        accessLock.lock()
-        defer { accessLock.unlock() }
-        
-        sessionHistory.append(session)
-        
-        // 限制历史数量
-        if sessionHistory.count > 100 {
-            sessionHistory.removeFirst(sessionHistory.count - 100)
-        }
-        
-        saveSessionHistory()
-    }
-    
-    /// 保存会话历史
-    private func saveSessionHistory() {
-        // 简化实现，实际项目中可以保存到文件
-        UserDefaults.standard.set(sessionHistory.count, forKey: "SessionHistoryCount")
-    }
-    
-    /// 加载会话历史
-    private func loadSessionHistory() {
-        // 简化实现，实际项目中可以从文件加载
-        let count = UserDefaults.standard.integer(forKey: "SessionHistoryCount")
-        LogManager.shared.log("Loaded \(count) sessions from history", level: .info)
-    }
-}
-
-// MARK: - Extensions
-
-extension SessionController {
-    
-    /// 获取会话统计信息
-    public func getSessionStatistics() -> [String: Any] {
-        accessLock.lock()
-        defer { accessLock.unlock() }
-        
-        let totalSessions = activeSessions.count + sessionHistory.count
-        let completedSessions = sessionHistory.filter { $0.state == .completed }.count
-        let failedSessions = sessionHistory.filter { $0.state == .failed }.count
-        let cancelledSessions = sessionHistory.filter { $0.state == .cancelled }.count
-        
-        return [
-            "totalSessions": totalSessions,
-            "activeSessions": activeSessions.count,
-            "completedSessions": completedSessions,
-            "failedSessions": failedSessions,
-            "cancelledSessions": cancelledSessions,
-            "queuedSessions": sessionQueue.count,
-            "maxConcurrentSessions": maxConcurrentSessions
-        ]
-    }
-    
-    /// 导出会话报告
-    public func exportSessionReport() -> String {
-        var report = "=== Session Controller Report ===\n\n"
-        
-        let stats = getSessionStatistics()
-        
-        report += "Generated: \(Date())\n"
-        report += "Total Sessions: \(stats["totalSessions"] ?? 0)\n"
-        report += "Active Sessions: \(stats["activeSessions"] ?? 0)\n"
-        report += "Completed Sessions: \(stats["completedSessions"] ?? 0)\n"
-        report += "Failed Sessions: \(stats["failedSessions"] ?? 0)\n"
-        report += "Cancelled Sessions: \(stats["cancelledSessions"] ?? 0)\n"
-        report += "Queued Sessions: \(stats["queuedSessions"] ?? 0)\n"
-        report += "Max Concurrent: \(stats["maxConcurrentSessions"] ?? 0)\n\n"
-        
-        // 活动会话详情
-        if !activeSessions.isEmpty {
-            report += "=== Active Sessions ===\n"
-            for session in activeSessions {
-                report += "[\(session.id)] \(session.rootPath) - \(session.state) (\(String(format: "%.1f%%", session.progress * 100)))\n"
-            }
-            report += "\n"
-        }
-        
-        // 最近完成的会话
-        let recentSessions = getSessionHistory(limit: 5)
-        if !recentSessions.isEmpty {
-            report += "=== Recent Sessions ===\n"
-            for session in recentSessions {
-                let duration = session.executionDuration ?? 0
-                report += "[\(session.id)] \(session.rootPath) - \(session.state) (\(String(format: "%.2fs", duration)))\n"
-            }
-        }
-        
-        return report
     }
 }

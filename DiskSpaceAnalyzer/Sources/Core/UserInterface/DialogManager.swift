@@ -210,25 +210,6 @@ public class ThemeManager: NSObject {
         }
     }
 }
-
-/// 主题类型
-public enum Theme: String, CaseIterable {
-    case light = "light"
-    case dark = "dark"
-    case system = "system"
-    
-    public var displayName: String {
-        switch self {
-        case .light:
-            return "浅色"
-        case .dark:
-            return "深色"
-        case .system:
-            return "跟随系统"
-        }
-    }
-}
-
 /// 系统集成器 - 集成macOS系统功能
 public class SystemIntegration: NSObject {
     

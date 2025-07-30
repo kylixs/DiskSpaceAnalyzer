@@ -42,8 +42,8 @@ public class DirectoryMerger {
         // 处理当前节点的子节点
         let processedChildren = processDirectories(node.children)
         
-        // 更新子节点
-        node.children = processedChildren
+        // 更新子节点 - 使用内部方法
+        node.updateChildren(processedChildren)
         
         // 递归处理子节点
         for child in node.children {

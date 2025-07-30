@@ -55,7 +55,9 @@ public class InteractionFeedback {
     
     private init() {
         self.configuration = InteractionConfiguration()
-        self.mouseHandler = MouseInteractionHandler(targetView: nil)
+        // 创建一个临时的空视图，稍后会通过setTargetView设置实际的目标视图
+        let tempView = NSView()
+        self.mouseHandler = MouseInteractionHandler(targetView: tempView)
         self.tooltipManager = TooltipManager.shared
         self.highlightRenderer = HighlightRenderer.shared
         self.contextMenuManager = ContextMenuManager.shared

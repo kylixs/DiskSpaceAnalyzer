@@ -234,8 +234,10 @@ public class HighlightRenderer {
         layer.borderColor = NSColor.keyboardFocusIndicatorColor.cgColor
         layer.borderWidth = configuration.borderWidth
         
-        // 添加虚线边框
-        layer.lineDashPattern = [4, 2]
+        // 添加虚线边框 (CALayer没有lineDashPattern，需要使用CAShapeLayer)
+        if let shapeLayer = layer as? CAShapeLayer {
+            shapeLayer.lineDashPattern = [4, 2]
+        }
     }
     
     /// 增加颜色亮度

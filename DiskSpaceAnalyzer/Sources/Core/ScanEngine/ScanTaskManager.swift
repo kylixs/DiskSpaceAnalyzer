@@ -1,18 +1,5 @@
 import Foundation
 import Dispatch
-
-/// 扫描任务优先级
-public enum ScanTaskPriority: Int, CaseIterable, Comparable {
-    case low = 0
-    case normal = 1
-    case high = 2
-    case urgent = 3
-    
-    public static func < (lhs: ScanTaskPriority, rhs: ScanTaskPriority) -> Bool {
-        return lhs.rawValue < rhs.rawValue
-    }
-}
-
 /// 扫描任务状态
 public enum ScanTaskStatus {
     case pending    // 等待执行

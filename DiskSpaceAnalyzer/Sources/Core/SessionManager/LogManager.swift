@@ -1,39 +1,5 @@
 import Foundation
 import os.log
-
-/// 日志级别
-public enum LogLevel: Int, CaseIterable, Comparable {
-    case debug = 0
-    case info = 1
-    case warning = 2
-    case error = 3
-    case fatal = 4
-    
-    public static func < (lhs: LogLevel, rhs: LogLevel) -> Bool {
-        return lhs.rawValue < rhs.rawValue
-    }
-    
-    public var displayName: String {
-        switch self {
-        case .debug: return "DEBUG"
-        case .info: return "INFO"
-        case .warning: return "WARNING"
-        case .error: return "ERROR"
-        case .fatal: return "FATAL"
-        }
-    }
-    
-    public var emoji: String {
-        switch self {
-        case .debug: return "🔍"
-        case .info: return "ℹ️"
-        case .warning: return "⚠️"
-        case .error: return "❌"
-        case .fatal: return "💀"
-        }
-    }
-}
-
 /// 日志条目
 public struct LogEntry {
     public let id: UUID

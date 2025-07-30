@@ -241,16 +241,6 @@ public class SessionManager: ObservableObject {
         }
     }
 }
-
-/// 系统状态
-public enum SystemStatus {
-    case idle       // 空闲
-    case preparing  // 准备中
-    case scanning   // 扫描中
-    case processing // 处理中
-    case error      // 错误状态
-}
-
 // MARK: - Global Convenience Functions
 
 /// 全局会话管理器访问函数
