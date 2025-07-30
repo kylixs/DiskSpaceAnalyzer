@@ -54,6 +54,11 @@ let package = Package(
             name: "TreeMapVisualizationTests",
             dependencies: ["Core"],
             path: "Tests/TreeMapVisualizationTests"
+        ),
+        .testTarget(
+            name: "InteractionFeedbackTests",
+            dependencies: ["Core"],
+            path: "Tests/InteractionFeedbackTests"
         )
     ]
 )
