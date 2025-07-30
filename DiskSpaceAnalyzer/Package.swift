@@ -39,6 +39,16 @@ let package = Package(
             name: "CoordinateSystemTests",
             dependencies: ["Core"],
             path: "Tests/CoordinateSystemTests"
+        ),
+        .testTarget(
+            name: "PerformanceOptimizerTests",
+            dependencies: ["Core"],
+            path: "Tests/PerformanceOptimizerTests"
+        ),
+        .testTarget(
+            name: "ScanEngineTests",
+            dependencies: ["Core"],
+            path: "Tests/ScanEngineTests"
         )
     ]
 )
