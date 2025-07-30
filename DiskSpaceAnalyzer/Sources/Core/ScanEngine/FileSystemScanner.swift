@@ -70,24 +70,6 @@ public struct ScanStatistics {
     }
 }
 
-/// 扫描配置
-public struct ScanConfiguration {
-    public let maxConcurrency: Int
-    public let followSymlinks: Bool
-    public let includeHiddenFiles: Bool
-    public let maxDepth: Int?
-    public let excludePaths: Set<String>
-    public let fileExtensionFilter: Set<String>?
-    
-    public init(maxConcurrency: Int = 4, followSymlinks: Bool = false, includeHiddenFiles: Bool = false, maxDepth: Int? = nil, excludePaths: Set<String> = [], fileExtensionFilter: Set<String>? = nil) {
-        self.maxConcurrency = maxConcurrency
-        self.followSymlinks = followSymlinks
-        self.includeHiddenFiles = includeHiddenFiles
-        self.maxDepth = maxDepth
-        self.excludePaths = excludePaths
-        self.fileExtensionFilter = fileExtensionFilter
-    }
-}
 
 /// 文件系统扫描器 - 核心扫描引擎
 public class FileSystemScanner {

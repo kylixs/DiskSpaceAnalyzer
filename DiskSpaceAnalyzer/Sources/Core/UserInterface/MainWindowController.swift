@@ -334,6 +334,11 @@ public class MainWindowController: NSWindowController {
         statusBarManager.updateProgress(0.0)
     }
     
+    /// 更新UI（公共接口）
+    public func updateUI(for session: ScanSession?) {
+        updateUIForSession(session)
+    }
+    
     /// 更新UI以反映会话状态
     private func updateUIForSession(_ session: ScanSession?) {
         guard let session = session else {

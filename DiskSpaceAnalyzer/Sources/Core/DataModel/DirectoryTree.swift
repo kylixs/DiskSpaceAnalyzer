@@ -1,13 +1,5 @@
 import Foundation
 
-/// 文件类型枚举
-public enum FileType {
-    case directory
-    case regularFile
-    case symbolicLink
-    case other
-}
-
 /// 目录树结构管理类
 /// 支持高效的增删改查操作和多种遍历方式
 public class DirectoryTree: ObservableObject {
@@ -101,7 +93,7 @@ public class DirectoryTree: ObservableObject {
     /// 获取指定类型的节点
     /// - Parameter type: 文件类型
     /// - Returns: 符合条件的节点数组
-    public func getNodes(ofType type: FileType) -> [FileNode] {
+    public func getNodes(ofType type: AppFileType) -> [FileNode] {
         return accessQueue.sync {
             let allNodes = getAllNodes()
             return allNodes.filter { node in
