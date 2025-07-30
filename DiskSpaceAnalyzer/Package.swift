@@ -49,6 +49,11 @@ let package = Package(
             name: "ScanEngineTests",
             dependencies: ["Core"],
             path: "Tests/ScanEngineTests"
+        ),
+        .testTarget(
+            name: "TreeMapVisualizationTests",
+            dependencies: ["Core"],
+            path: "Tests/TreeMapVisualizationTests"
         )
     ]
 )
