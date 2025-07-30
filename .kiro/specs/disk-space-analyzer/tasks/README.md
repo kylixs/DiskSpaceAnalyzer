@@ -3,6 +3,11 @@
 ## 项目概述
 基于需求文档和模块设计，将整个磁盘空间分析器项目划分为9个核心模块，每个模块都有详细的开发任务和实现计划。
 
+## 任务状态说明
+- ✅ **已完成** - 模块/任务已完成开发和测试
+- 🔄 **处理中** - 模块/任务正在开发中
+- ⏳ **待处理** - 模块/任务等待开始
+
 ## 模块开发顺序和依赖关系
 
 ### 第1阶段 - 基础设施模块 (无依赖)
@@ -12,18 +17,21 @@
    - **优先级：** 最高 (基础设施)
    - **预估工期：** 3-4天
    - **依赖关系：** 无依赖
+   - **模块状态：** ✅ 已完成
    - **核心任务：** FileNode、DirectoryTree、ScanSession、DataPersistence
 
 2. **[coordinate-system.md](./coordinate-system.md)** - 坐标系统模块
    - **优先级：** 高 (基础设施)
    - **预估工期：** 3-4天
    - **依赖关系：** 无依赖
+   - **模块状态：** ⏳ 待处理
    - **核心任务：** CoordinateTransformer、HiDPIManager、MultiDisplayHandler、DebugVisualizer
 
 3. **[performance-optimizer.md](./performance-optimizer.md)** - 性能优化模块
    - **优先级：** 高 (基础设施)
    - **预估工期：** 3-4天
    - **依赖关系：** 无依赖
+   - **模块状态：** ⏳ 待处理
    - **核心任务：** CPUOptimizer、ThrottleManager、TaskScheduler、PerformanceMonitor
 
 ### 第2阶段 - 核心业务模块 (依赖基础设施)
@@ -33,6 +41,7 @@
    - **优先级：** 高 (核心业务)
    - **预估工期：** 4-5天
    - **依赖关系：** DataModel, PerformanceOptimizer
+   - **模块状态：** ⏳ 待处理
    - **核心任务：** FileSystemScanner、ScanProgressManager、FileFilter、ScanTaskManager
 
 ### 第3阶段 - 界面组件模块 (依赖基础设施和数据)
@@ -42,18 +51,21 @@
    - **优先级：** 高 (核心UI)
    - **预估工期：** 4-5天
    - **依赖关系：** DataModel, PerformanceOptimizer
+   - **模块状态：** ⏳ 待处理
    - **核心任务：** DirectoryTreeViewController、SmartDirectoryNode、DirectoryMerger、TreeExpansionManager
 
 6. **[treemap-visualization.md](./treemap-visualization.md)** - TreeMap可视化模块
    - **优先级：** 高 (核心可视化)
    - **预估工期：** 5-6天
    - **依赖关系：** DataModel, CoordinateSystem, PerformanceOptimizer
+   - **模块状态：** ⏳ 待处理
    - **核心任务：** TreeMapLayoutEngine、SquarifiedAlgorithm、ColorManager、SmallFilesMerger、AnimationController
 
 7. **[interaction-feedback.md](./interaction-feedback.md)** - 交互反馈模块
    - **优先级：** 高 (用户体验关键)
    - **预估工期：** 4-5天
    - **依赖关系：** CoordinateSystem, DirectoryTreeView, TreeMapVisualization
+   - **模块状态：** ⏳ 待处理
    - **核心任务：** MouseInteractionHandler、TooltipManager、HighlightRenderer、ContextMenuManager
 
 ### 第4阶段 - 应用管理模块 (依赖所有其他模块)
@@ -63,12 +75,14 @@
    - **优先级：** 高 (顶层UI)
    - **预估工期：** 4-5天
    - **依赖关系：** DirectoryTreeView, TreeMapVisualization, SessionManager
+   - **模块状态：** ⏳ 待处理
    - **核心任务：** MainWindowController、MenuBarManager、DialogManager、ThemeManager、SystemIntegration
 
 9. **[session-manager.md](./session-manager.md)** - 会话管理模块
    - **优先级：** 高 (顶层管理)
    - **预估工期：** 4-5天
    - **依赖关系：** 所有其他模块
+   - **模块状态：** ⏳ 待处理
    - **核心任务：** SessionController、ErrorHandler、LogManager、ProgressDialogManager、AppDelegate
 
 ## 总体开发计划
