@@ -12,8 +12,8 @@ let package = Package(
             targets: ["DiskSpaceAnalyzer"]
         ),
         .library(
-            name: "DiskSpaceAnalyzerCore",
-            targets: ["DiskSpaceAnalyzerCore"]
+            name: "Core",
+            targets: ["Core"]
         )
     ],
     dependencies: [
@@ -22,18 +22,23 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "DiskSpaceAnalyzer",
-            dependencies: ["DiskSpaceAnalyzerCore"],
+            dependencies: ["Core"],
             path: "Sources/App"
         ),
         .target(
-            name: "DiskSpaceAnalyzerCore",
+            name: "Core",
             dependencies: [],
             path: "Sources/Core"
         ),
         .testTarget(
-            name: "DiskSpaceAnalyzerCoreTests",
-            dependencies: ["DiskSpaceAnalyzerCore"],
+            name: "DataModelTests",
+            dependencies: ["Core"],
             path: "Tests/DataModelTests"
+        ),
+        .testTarget(
+            name: "CoordinateSystemTests",
+            dependencies: ["Core"],
+            path: "Tests/CoordinateSystemTests"
         )
     ]
 )
