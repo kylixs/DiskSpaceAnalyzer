@@ -22,8 +22,8 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "DiskSpaceAnalyzer",
-            dependencies: ["Core"],
-            path: "Sources/App"
+            dependencies: [],
+            path: "Sources/DiskSpaceAnalyzer"
         ),
         .target(
             name: "Core",

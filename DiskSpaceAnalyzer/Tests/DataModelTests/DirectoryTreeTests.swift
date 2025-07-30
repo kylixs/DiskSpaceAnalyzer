@@ -1,5 +1,5 @@
 import XCTest
-@testable import DiskSpaceAnalyzerCore
+@testable import Core
 
 class DirectoryTreeTests: XCTestCase {
     
