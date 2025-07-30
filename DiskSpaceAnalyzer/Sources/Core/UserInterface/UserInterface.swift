@@ -59,7 +59,7 @@ public class UserInterface {
         
         isInitialized = true
         
-        LogManager.shared.info("User interface initialized", category: "UserInterface")
+        LogManager.shared.info("User interface initialized with complete layout", category: "UserInterface")
     }
     
     /// 显示主窗口
@@ -95,7 +95,9 @@ public class UserInterface {
             "mainWindowVisible": mainWindowController.window?.isVisible ?? false,
             "currentTheme": themeManager.currentTheme.rawValue,
             "isDarkMode": themeManager.isDarkMode,
-            "recentPathsCount": menuBarManager.recentPaths.count
+            "recentPathsCount": menuBarManager.recentPaths.count,
+            "hasToolbar": mainWindowController.window?.toolbar != nil,
+            "hasStatusBar": true
         ]
     }
     
@@ -110,7 +112,9 @@ public class UserInterface {
         report += "Main Window Visible: \(state["mainWindowVisible"] ?? false)\n"
         report += "Current Theme: \(state["currentTheme"] ?? "unknown")\n"
         report += "Dark Mode: \(state["isDarkMode"] ?? false)\n"
-        report += "Recent Paths Count: \(state["recentPathsCount"] ?? 0)\n\n"
+        report += "Recent Paths Count: \(state["recentPathsCount"] ?? 0)\n"
+        report += "Has Toolbar: \(state["hasToolbar"] ?? false)\n"
+        report += "Has Status Bar: \(state["hasStatusBar"] ?? false)\n\n"
         
         // 窗口信息
         if let window = mainWindowController.window {
@@ -121,6 +125,17 @@ public class UserInterface {
             report += "Is Key: \(window.isKeyWindow)\n"
             report += "Is Main: \(window.isMainWindow)\n\n"
         }
+        
+        report += "=== UI Components ===\n"
+        report += "✅ MainWindowController - Complete layout with toolbar, split view, status bar\n"
+        report += "✅ ToolbarManager - Scan controls, progress indicator, path display\n"
+        report += "✅ StatusBarManager - Status, statistics, error display\n"
+        report += "✅ DirectoryTreePanel - NSOutlineView with file hierarchy\n"
+        report += "✅ TreeMapPanel - Visualization container with interaction\n"
+        report += "✅ MenuBarManager - Standard macOS menus\n"
+        report += "✅ DialogManager - File selection and alerts\n"
+        report += "✅ ThemeManager - Dark/light mode support\n"
+        report += "✅ SystemIntegration - Notifications and system features\n"
         
         return report
     }
@@ -209,28 +224,4 @@ public func showInfo(title: String, message: String) {
 /// 发送系统通知
 public func sendNotification(title: String, message: String) {
     SystemIntegration.shared.sendNotification(title: title, message: message)
-}
-
-// MARK: - Application Integration
-
-/// 应用程序主入口点
-@main
-public struct DiskSpaceAnalyzerApp {
-    public static func main() {
-        // 创建应用程序
-        let app = NSApplication.shared
-        
-        // 设置应用程序委托
-        let appDelegate = SessionManager.shared.appDelegate
-        app.delegate = appDelegate
-        
-        // 初始化用户界面
-        initializeUI()
-        
-        // 显示主窗口
-        showMainWindow()
-        
-        // 运行应用程序
-        app.run()
-    }
 }

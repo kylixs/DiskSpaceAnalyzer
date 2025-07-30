@@ -13,7 +13,7 @@ public class MenuBarManager: NSObject {
     private var mainMenu: NSMenu!
     
     /// 最近使用的路径
-    private var recentPaths: [String] = []
+    public private(set) var recentPaths: [String] = []
     
     /// 最大最近路径数量
     private let maxRecentPaths = 10
@@ -330,7 +330,7 @@ public class MenuBarManager: NSObject {
     
     // MARK: - Menu Actions
     
-    @objc private func aboutAction() {
+    @objc public func aboutAction() {
         let appName = Bundle.main.infoDictionary?["CFBundleName"] as? String ?? "磁盘空间分析器"
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
@@ -344,7 +344,7 @@ public class MenuBarManager: NSObject {
         alert.runModal()
     }
     
-    @objc private func preferencesAction() {
+    @objc public func preferencesAction() {
         // 显示偏好设置窗口
         // 这里可以实现偏好设置界面
         let alert = NSAlert()
@@ -359,7 +359,7 @@ public class MenuBarManager: NSObject {
         mainWindowController?.selectFolderAction()
     }
     
-    @objc private func exportReportAction() {
+    @objc public func exportReportAction() {
         let savePanel = NSSavePanel()
         savePanel.allowedFileTypes = ["txt"]
         savePanel.nameFieldStringValue = "DiskSpaceAnalyzer-Report-\(Date().timeIntervalSince1970).txt"
