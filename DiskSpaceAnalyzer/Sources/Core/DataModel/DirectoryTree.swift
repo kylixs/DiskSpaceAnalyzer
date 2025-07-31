@@ -599,7 +599,7 @@ extension DirectoryTree {
     
     /// 线程安全地写入数据
     /// - Parameter block: 写入操作
-    public func safeWrite(_ block: (DirectoryTree) -> Void) {
+    public func safeWrite(_ block: @escaping (DirectoryTree) -> Void) {
         accessQueue.async(flags: .barrier) {
             block(self)
         }

@@ -294,12 +294,12 @@ public struct DataStatistics {
     
     /// 格式化的总扫描大小
     public var formattedTotalScannedBytes: String {
-        return ByteFormatter.format(bytes: totalScannedBytes)
+        return ByteFormatter.shared.string(fromByteCount: totalScannedBytes)
     }
     
     /// 格式化的数据目录大小
     public var formattedDataDirectorySize: String {
-        return ByteFormatter.format(bytes: dataDirectorySize)
+        return ByteFormatter.shared.string(fromByteCount: dataDirectorySize)
     }
 }
 

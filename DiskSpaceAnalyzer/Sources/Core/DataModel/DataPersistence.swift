@@ -112,7 +112,7 @@ public class DataPersistence {
         let treeFile = sessionsDirectory.appendingPathComponent("\(sessionId.uuidString)_tree.json")
         
         // 简化保存：只保存基本信息
-        let treeData = [
+        let treeData: [String: Any] = [
             "sessionId": sessionId.uuidString,
             "nodeCount": tree.nodeCount,
             "savedAt": ISO8601DateFormatter().string(from: Date())

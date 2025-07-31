@@ -3,7 +3,7 @@ import Combine
 
 /// 扫描会话数据模型
 /// 记录扫描的完整生命周期和状态信息
-public class ScanSession: ObservableObject, Identifiable, Codable {
+public final class ScanSession: ObservableObject, Identifiable, Codable {
     
     // MARK: - Properties
     
@@ -32,16 +32,16 @@ public class ScanSession: ObservableObject, Identifiable, Codable {
     @Published public var resumedAt: Date?
     
     /// 扫描状态
-    @Published public var status: AppScanStatus = .pending
+    @Published public var status: ScanStatus = .pending
     
     /// 扫描配置
-    @Published public var configuration: AppScanConfiguration
+    @Published public var configuration: ScanConfiguration
     
     /// 扫描统计信息
-    @Published public var statistics: AppScanStatistics
+    @Published public var statistics: ScanStatistics
     
     /// 错误列表
-    @Published public var errors: [AppScanError] = []
+    @Published public var errors: [ScanError] = []
     
     /// 当前扫描的文件路径
     @Published public var currentPath: String = ""
@@ -100,13 +100,13 @@ public class ScanSession: ObservableObject, Identifiable, Codable {
     // MARK: - Initialization
     
     /// 初始化扫描会话
-    public init(scanPath: String, name: String? = nil, configuration: AppScanConfiguration = AppScanConfiguration()) {
+    public init(scanPath: String, name: String? = nil, configuration: ScanConfiguration = ScanConfiguration()) {
         self.id = UUID()
         self.scanPath = scanPath
         self.name = name ?? URL(fileURLWithPath: scanPath).lastPathComponent
         self.createdAt = Date()
         self.configuration = configuration
-        self.statistics = AppScanStatistics()
+        self.statistics = ScanStatistics()
         self.directoryTree = DirectoryTree()
     }
     
@@ -152,7 +152,7 @@ public class ScanSession: ObservableObject, Identifiable, Codable {
     }
     
     /// 添加错误
-    public func addError(_ error: AppScanError) {
+    public func addError(_ error: ScanError) {
         errors.append(error)
     }
     
@@ -175,10 +175,10 @@ public class ScanSession: ObservableObject, Identifiable, Codable {
         completedAt = try container.decodeIfPresent(Date.self, forKey: .completedAt)
         pausedAt = try container.decodeIfPresent(Date.self, forKey: .pausedAt)
         resumedAt = try container.decodeIfPresent(Date.self, forKey: .resumedAt)
-        status = try container.decode(AppScanStatus.self, forKey: .status)
-        configuration = try container.decode(AppScanConfiguration.self, forKey: .configuration)
-        statistics = try container.decode(AppScanStatistics.self, forKey: .statistics)
-        errors = try container.decode([AppScanError].self, forKey: .errors)
+        status = try container.decode(ScanStatus.self, forKey: .status)
+        configuration = try container.decode(ScanConfiguration.self, forKey: .configuration)
+        statistics = try container.decode(ScanStatistics.self, forKey: .statistics)
+        errors = try container.decode([ScanError].self, forKey: .errors)
         currentPath = try container.decode(String.self, forKey: .currentPath)
         progress = try container.decode(Double.self, forKey: .progress)
         estimatedTimeRemaining = try container.decode(TimeInterval.self, forKey: .estimatedTimeRemaining)

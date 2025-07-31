@@ -46,10 +46,10 @@ public class FileNode: ObservableObject, Identifiable, Codable {
     @Published public var isSelected: Bool = false
     
     /// 扫描状态
-    @Published public var scanStatus: ScanStatus = .pending
+    public var scanStatus: ScanStatus = .pending
     
     /// 错误信息（如果扫描失败）
-    @Published public var error: ScanError?
+    public var error: ScanError?
     
     // MARK: - Computed Properties
     
@@ -419,7 +419,7 @@ extension FileNode: Hashable {
 
 extension FileNode: CustomStringConvertible {
     public var description: String {
-        let sizeStr = AppByteFormatter.format(bytes: totalSize)
+        let sizeStr = ByteFormatter.shared.string(fromByteCount: totalSize)
         let typeStr = isDirectory ? "📁" : "📄"
         return "\(typeStr) \(name) (\(sizeStr))"
     }
@@ -440,7 +440,7 @@ extension FileNode {
     
     /// 线程安全地写入属性
     /// - Parameter block: 写入操作
-    public func safeWrite(_ block: (FileNode) -> Void) {
+    public func safeWrite(_ block: @escaping (FileNode) -> Void) {
         let queue = DispatchQueue(label: "FileNode.access", attributes: .concurrent)
         queue.async(flags: .barrier) {
             block(self)
