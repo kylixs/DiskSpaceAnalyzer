@@ -42,6 +42,10 @@ let package = Package(
         .library(
             name: "InteractionFeedback",
             targets: ["InteractionFeedback"]
+        ),
+        .library(
+            name: "SessionManager",
+            targets: ["SessionManager"]
         )
     ],
     dependencies: [
@@ -51,7 +55,7 @@ let package = Package(
         // 可执行目标
         .executableTarget(
             name: "DiskSpaceAnalyzer",
-            dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer", "ScanEngine", "DirectoryTreeView", "TreeMapVisualization", "InteractionFeedback"],
+            dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer", "ScanEngine", "DirectoryTreeView", "TreeMapVisualization", "InteractionFeedback", "SessionManager"],
             path: "Sources/App"
         ),
         
@@ -111,6 +115,13 @@ let package = Package(
             path: "Sources/InteractionFeedback"
         ),
         
+        // SessionManager模块 - 会话管理系统
+        .target(
+            name: "SessionManager",
+            dependencies: ["Common", "DataModel", "PerformanceOptimizer", "ScanEngine"],
+            path: "Sources/SessionManager"
+        ),
+        
         // 测试目标
         .testTarget(
             name: "CommonTests",
@@ -159,6 +170,13 @@ let package = Package(
             name: "InteractionFeedbackTests",
             dependencies: ["InteractionFeedback", "Common", "CoordinateSystem", "DirectoryTreeView", "TreeMapVisualization", "PerformanceOptimizer"],
             path: "Tests/InteractionFeedbackTests"
+        ),
+        
+        // SessionManager模块测试
+        .testTarget(
+            name: "SessionManagerTests",
+            dependencies: ["SessionManager", "Common", "DataModel", "PerformanceOptimizer", "ScanEngine"],
+            path: "Tests/SessionManagerTests"
         )
     ]
 )
