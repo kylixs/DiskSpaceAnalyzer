@@ -30,6 +30,10 @@ let package = Package(
         .library(
             name: "ScanEngine",
             targets: ["ScanEngine"]
+        ),
+        .library(
+            name: "DirectoryTreeView",
+            targets: ["DirectoryTreeView"]
         )
     ],
     dependencies: [
@@ -39,7 +43,7 @@ let package = Package(
         // 可执行目标
         .executableTarget(
             name: "DiskSpaceAnalyzer",
-            dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer", "ScanEngine"],
+            dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer", "ScanEngine", "DirectoryTreeView"],
             path: "Sources/App"
         ),
         
@@ -78,6 +82,13 @@ let package = Package(
             path: "Sources/ScanEngine"
         ),
         
+        // DirectoryTreeView模块 - 智能目录树显示
+        .target(
+            name: "DirectoryTreeView",
+            dependencies: ["Common", "DataModel", "PerformanceOptimizer"],
+            path: "Sources/DirectoryTreeView"
+        ),
+        
         // 测试目标
         .testTarget(
             name: "CommonTests",
@@ -105,6 +116,13 @@ let package = Package(
             name: "ScanEngineTests",
             dependencies: ["ScanEngine", "Common", "DataModel", "PerformanceOptimizer"],
             path: "Tests/ScanEngineTests"
+        ),
+        
+        // DirectoryTreeView模块测试
+        .testTarget(
+            name: "DirectoryTreeViewTests",
+            dependencies: ["DirectoryTreeView", "Common", "DataModel", "PerformanceOptimizer"],
+            path: "Tests/DirectoryTreeViewTests"
         )
     ]
 )
