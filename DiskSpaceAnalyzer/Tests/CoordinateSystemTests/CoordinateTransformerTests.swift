@@ -1,363 +1,280 @@
 import XCTest
+import AppKit
 @testable import CoordinateSystem
 @testable import Common
 
-final class CoordinateTransformerTests: XCTestCase {
-    
-    // MARK: - Test Properties
+final class CoordinateTransformerTests: BaseTestCase {
     
     var transformer: CoordinateTransformer!
-    
-    // MARK: - Setup & Teardown
+    var testWindow: NSWindow!
     
     override func setUpWithError() throws {
-        transformer = CoordinateTransformer()
+        transformer = CoordinateTransformer.shared
+        
+        // 创建测试窗口
+        testWindow = NSWindow(
+            contentRect: NSRect(x: 100, y: 100, width: 800, height: 600),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
     }
     
     override func tearDownWithError() throws {
+        testWindow = nil
         transformer = nil
     }
     
-    // MARK: - Initialization Tests
+    // MARK: - Basic Coordinate Transformation Tests
     
-    func testCoordinateTransformerInitialization() throws {
-        XCTAssertNotNil(transformer)
-        XCTAssertEqual(transformer.currentScale, 1.0, accuracy: 0.001)
-        XCTAssertEqual(transformer.currentOffset, Point.zero)
-        XCTAssertTrue(transformer.transformationStack.isEmpty)
+    func testScreenToWindowTransformation() throws {
+        let screenPoint = CGPoint(x: 500, y: 400)
+        let windowPoint = transformer.screenToWindow(screenPoint, in: testWindow)
+        
+        // 窗口位置在 (100, 100)，所以窗口坐标应该是屏幕坐标减去窗口原点
+        XCTAssertEqual(windowPoint.x, 400, accuracy: 0.001) // 500 - 100
+        XCTAssertEqual(windowPoint.y, 300, accuracy: 0.001) // 400 - 100
     }
     
-    // MARK: - Basic Transformation Tests
-    
-    func testTranslation() throws {
-        let originalPoint = Point(x: 100, y: 200)
-        let offset = Point(x: 50, y: 75)
+    func testWindowToScreenTransformation() throws {
+        let windowPoint = CGPoint(x: 200, y: 150)
+        let screenPoint = transformer.windowToScreen(windowPoint, from: testWindow)
         
-        transformer.translate(by: offset)
-        let transformedPoint = transformer.transform(point: originalPoint)
-        
-        XCTAssertEqual(transformedPoint.x, 150, accuracy: 0.001)
-        XCTAssertEqual(transformedPoint.y, 275, accuracy: 0.001)
+        // 屏幕坐标应该是窗口坐标加上窗口原点
+        XCTAssertEqual(screenPoint.x, 300, accuracy: 0.001) // 200 + 100
+        XCTAssertEqual(screenPoint.y, 250, accuracy: 0.001) // 150 + 100
     }
     
-    func testScaling() throws {
-        let originalPoint = Point(x: 100, y: 200)
-        let scale = 2.0
+    func testWindowToContainerTransformation() throws {
+        let windowPoint = CGPoint(x: 300, y: 250)
+        let containerFrame = CGRect(x: 50, y: 50, width: 400, height: 300)
         
-        transformer.scale(by: scale)
-        let transformedPoint = transformer.transform(point: originalPoint)
+        let containerPoint = transformer.windowToContainer(windowPoint, containerFrame: containerFrame)
         
-        XCTAssertEqual(transformedPoint.x, 200, accuracy: 0.001)
-        XCTAssertEqual(transformedPoint.y, 400, accuracy: 0.001)
+        XCTAssertEqual(containerPoint.x, 250, accuracy: 0.001) // 300 - 50
+        XCTAssertEqual(containerPoint.y, 200, accuracy: 0.001) // 250 - 50
     }
     
-    func testScalingAroundPoint() throws {
-        let originalPoint = Point(x: 100, y: 100)
-        let centerPoint = Point(x: 50, y: 50)
-        let scale = 2.0
+    func testContainerToWindowTransformation() throws {
+        let containerPoint = CGPoint(x: 150, y: 100)
+        let containerFrame = CGRect(x: 50, y: 50, width: 400, height: 300)
         
-        transformer.scale(by: scale, around: centerPoint)
-        let transformedPoint = transformer.transform(point: originalPoint)
+        let windowPoint = transformer.containerToWindow(containerPoint, containerFrame: containerFrame)
         
-        // 点(100,100)围绕(50,50)缩放2倍应该变成(150,150)
-        XCTAssertEqual(transformedPoint.x, 150, accuracy: 0.001)
-        XCTAssertEqual(transformedPoint.y, 150, accuracy: 0.001)
+        XCTAssertEqual(windowPoint.x, 200, accuracy: 0.001) // 150 + 50
+        XCTAssertEqual(windowPoint.y, 150, accuracy: 0.001) // 100 + 50
     }
     
-    func testCombinedTransformations() throws {
-        let originalPoint = Point(x: 100, y: 200)
+    func testContainerToCanvasTransformation() throws {
+        let containerPoint = CGPoint(x: 100, y: 100)
+        let canvasTransform = CGAffineTransform(scaleX: 2.0, y: 2.0).translatedBy(x: 50, y: 50)
         
-        // 先缩放2倍，再平移(50, 75)
-        transformer.scale(by: 2.0)
-        transformer.translate(by: Point(x: 50, y: 75))
+        let canvasPoint = transformer.containerToCanvas(containerPoint, canvasTransform: canvasTransform)
         
-        let transformedPoint = transformer.transform(point: originalPoint)
-        
-        XCTAssertEqual(transformedPoint.x, 250, accuracy: 0.001) // (100*2)+50
-        XCTAssertEqual(transformedPoint.y, 475, accuracy: 0.001) // (200*2)+75
+        // 应用逆变换
+        let expectedPoint = containerPoint.applying(canvasTransform.inverted())
+        XCTAssertEqual(canvasPoint.x, expectedPoint.x, accuracy: 0.001)
+        XCTAssertEqual(canvasPoint.y, expectedPoint.y, accuracy: 0.001)
     }
     
-    // MARK: - Rectangle Transformation Tests
-    
-    func testRectangleTransformation() throws {
-        let originalRect = Rect(x: 10, y: 20, width: 100, height: 200)
+    func testCanvasToContainerTransformation() throws {
+        let canvasPoint = CGPoint(x: 75, y: 75)
+        let canvasTransform = CGAffineTransform(scaleX: 2.0, y: 2.0).translatedBy(x: 50, y: 50)
         
-        transformer.scale(by: 2.0)
-        transformer.translate(by: Point(x: 50, y: 75))
+        let containerPoint = transformer.canvasToContainer(canvasPoint, canvasTransform: canvasTransform)
         
-        let transformedRect = transformer.transform(rect: originalRect)
-        
-        XCTAssertEqual(transformedRect.x, 70, accuracy: 0.001)    // (10*2)+50
-        XCTAssertEqual(transformedRect.y, 115, accuracy: 0.001)   // (20*2)+75
-        XCTAssertEqual(transformedRect.width, 200, accuracy: 0.001)  // 100*2
-        XCTAssertEqual(transformedRect.height, 400, accuracy: 0.001) // 200*2
+        // 应用变换
+        let expectedPoint = canvasPoint.applying(canvasTransform)
+        XCTAssertEqual(containerPoint.x, expectedPoint.x, accuracy: 0.001)
+        XCTAssertEqual(containerPoint.y, expectedPoint.y, accuracy: 0.001)
     }
     
-    // MARK: - Inverse Transformation Tests
+    // MARK: - Generic Transform Tests
     
-    func testInverseTransformation() throws {
-        let originalPoint = Point(x: 100, y: 200)
+    func testGenericTransform() throws {
+        let point = CGPoint(x: 100, y: 200)
+        let transform = CGAffineTransform(scaleX: 1.5, y: 1.5).translatedBy(x: 25, y: 35)
         
-        transformer.scale(by: 2.0)
-        transformer.translate(by: Point(x: 50, y: 75))
+        let transformedPoint = transformer.transform(point, using: transform)
+        let expectedPoint = point.applying(transform)
         
-        let transformedPoint = transformer.transform(point: originalPoint)
-        let inversePoint = transformer.inverseTransform(point: transformedPoint)
-        
-        XCTAssertEqual(inversePoint.x, originalPoint.x, accuracy: 0.001)
-        XCTAssertEqual(inversePoint.y, originalPoint.y, accuracy: 0.001)
+        XCTAssertEqual(transformedPoint.x, expectedPoint.x, accuracy: 0.001)
+        XCTAssertEqual(transformedPoint.y, expectedPoint.y, accuracy: 0.001)
     }
     
-    func testInverseRectangleTransformation() throws {
-        let originalRect = Rect(x: 10, y: 20, width: 100, height: 200)
+    func testIdentityTransform() throws {
+        let point = CGPoint(x: 100, y: 200)
+        let identityTransform = CGAffineTransform.identity
         
-        transformer.scale(by: 1.5)
-        transformer.translate(by: Point(x: 25, y: 35))
+        let transformedPoint = transformer.transform(point, using: identityTransform)
         
-        let transformedRect = transformer.transform(rect: originalRect)
-        let inverseRect = transformer.inverseTransform(rect: transformedRect)
-        
-        XCTAssertEqual(inverseRect.x, originalRect.x, accuracy: 0.001)
-        XCTAssertEqual(inverseRect.y, originalRect.y, accuracy: 0.001)
-        XCTAssertEqual(inverseRect.width, originalRect.width, accuracy: 0.001)
-        XCTAssertEqual(inverseRect.height, originalRect.height, accuracy: 0.001)
+        XCTAssertEqual(transformedPoint.x, point.x, accuracy: 0.001)
+        XCTAssertEqual(transformedPoint.y, point.y, accuracy: 0.001)
     }
     
-    // MARK: - Transformation Stack Tests
-    
-    func testPushPopTransformation() throws {
-        let originalPoint = Point(x: 100, y: 200)
+    func testScaleTransform() throws {
+        let point = CGPoint(x: 100, y: 200)
+        let scaleTransform = CGAffineTransform(scaleX: 2.0, y: 3.0)
         
-        // 初始变换
-        transformer.scale(by: 2.0)
-        let firstTransform = transformer.transform(point: originalPoint)
+        let transformedPoint = transformer.transform(point, using: scaleTransform)
         
-        // 保存当前状态并应用新变换
-        transformer.pushTransformation()
-        transformer.translate(by: Point(x: 50, y: 75))
-        let secondTransform = transformer.transform(point: originalPoint)
-        
-        // 恢复之前的状态
-        transformer.popTransformation()
-        let restoredTransform = transformer.transform(point: originalPoint)
-        
-        XCTAssertEqual(firstTransform.x, restoredTransform.x, accuracy: 0.001)
-        XCTAssertEqual(firstTransform.y, restoredTransform.y, accuracy: 0.001)
-        XCTAssertNotEqual(secondTransform.x, restoredTransform.x, accuracy: 0.001)
+        XCTAssertEqual(transformedPoint.x, 200, accuracy: 0.001) // 100 * 2.0
+        XCTAssertEqual(transformedPoint.y, 600, accuracy: 0.001) // 200 * 3.0
     }
     
-    func testNestedTransformationStack() throws {
-        let originalPoint = Point(x: 100, y: 100)
+    func testTranslationTransform() throws {
+        let point = CGPoint(x: 100, y: 200)
+        let translationTransform = CGAffineTransform(translationX: 50, y: 75)
         
-        // 第一层变换
-        transformer.scale(by: 2.0)
-        transformer.pushTransformation()
+        let transformedPoint = transformer.transform(point, using: translationTransform)
         
-        // 第二层变换
-        transformer.translate(by: Point(x: 50, y: 50))
-        transformer.pushTransformation()
-        
-        // 第三层变换
-        transformer.scale(by: 0.5)
-        let deepTransform = transformer.transform(point: originalPoint)
-        
-        // 逐层恢复
-        transformer.popTransformation() // 恢复到第二层
-        let secondLayerTransform = transformer.transform(point: originalPoint)
-        
-        transformer.popTransformation() // 恢复到第一层
-        let firstLayerTransform = transformer.transform(point: originalPoint)
-        
-        XCTAssertNotEqual(deepTransform.x, secondLayerTransform.x, accuracy: 0.001)
-        XCTAssertNotEqual(secondLayerTransform.x, firstLayerTransform.x, accuracy: 0.001)
-        XCTAssertEqual(firstLayerTransform.x, 200, accuracy: 0.001) // 只有2倍缩放
+        XCTAssertEqual(transformedPoint.x, 150, accuracy: 0.001) // 100 + 50
+        XCTAssertEqual(transformedPoint.y, 275, accuracy: 0.001) // 200 + 75
     }
     
-    // MARK: - Reset Tests
+    // MARK: - Composite Transform Tests
     
-    func testResetTransformation() throws {
-        let originalPoint = Point(x: 100, y: 200)
+    func testCreateCompositeTransform() throws {
+        let scaleTransform = CGAffineTransform(scaleX: 2.0, y: 2.0)
+        let translationTransform = CGAffineTransform(translationX: 50, y: 75)
+        let rotationTransform = CGAffineTransform(rotationAngle: .pi / 4)
         
-        // 应用多个变换
-        transformer.scale(by: 2.0)
-        transformer.translate(by: Point(x: 50, y: 75))
-        transformer.pushTransformation()
-        transformer.scale(by: 0.5)
+        let transforms = [scaleTransform, translationTransform, rotationTransform]
+        let compositeTransform = transformer.createCompositeTransform(transforms)
         
-        // 重置所有变换
-        transformer.reset()
+        // 验证复合变换不是单位矩阵
+        XCTAssertNotEqual(compositeTransform, CGAffineTransform.identity)
         
-        let transformedPoint = transformer.transform(point: originalPoint)
+        // 验证复合变换的效果
+        let point = CGPoint(x: 100, y: 100)
+        let transformedPoint = transformer.transform(point, using: compositeTransform)
         
-        XCTAssertEqual(transformedPoint.x, originalPoint.x, accuracy: 0.001)
-        XCTAssertEqual(transformedPoint.y, originalPoint.y, accuracy: 0.001)
-        XCTAssertEqual(transformer.currentScale, 1.0, accuracy: 0.001)
-        XCTAssertEqual(transformer.currentOffset, Point.zero)
-        XCTAssertTrue(transformer.transformationStack.isEmpty)
+        // 手动应用变换序列
+        let expectedPoint = point
+            .applying(scaleTransform)
+            .applying(translationTransform)
+            .applying(rotationTransform)
+        
+        XCTAssertEqual(transformedPoint.x, expectedPoint.x, accuracy: 0.001)
+        XCTAssertEqual(transformedPoint.y, expectedPoint.y, accuracy: 0.001)
     }
     
-    // MARK: - Bounds Transformation Tests
-    
-    func testTransformBounds() throws {
-        let bounds = Rect(x: 0, y: 0, width: 1000, height: 800)
+    func testEmptyCompositeTransform() throws {
+        let emptyTransforms: [CGAffineTransform] = []
+        let compositeTransform = transformer.createCompositeTransform(emptyTransforms)
         
-        transformer.scale(by: 0.5)
-        transformer.translate(by: Point(x: 100, y: 100))
-        
-        let transformedBounds = transformer.transformBounds(bounds)
-        
-        XCTAssertEqual(transformedBounds.x, 100, accuracy: 0.001)
-        XCTAssertEqual(transformedBounds.y, 100, accuracy: 0.001)
-        XCTAssertEqual(transformedBounds.width, 500, accuracy: 0.001)
-        XCTAssertEqual(transformedBounds.height, 400, accuracy: 0.001)
+        XCTAssertEqual(compositeTransform, CGAffineTransform.identity)
     }
     
-    func testFitToRect() throws {
-        let sourceRect = Rect(x: 0, y: 0, width: 200, height: 100)
-        let targetRect = Rect(x: 50, y: 50, width: 400, height: 300)
+    func testSingleCompositeTransform() throws {
+        let singleTransform = CGAffineTransform(scaleX: 1.5, y: 1.5)
+        let compositeTransform = transformer.createCompositeTransform([singleTransform])
         
-        transformer.fitToRect(source: sourceRect, target: targetRect, maintainAspectRatio: true)
-        
-        let transformedRect = transformer.transform(rect: sourceRect)
-        
-        // 应该保持宽高比，所以会按较小的缩放因子缩放
-        XCTAssertTrue(transformedRect.width <= targetRect.width)
-        XCTAssertTrue(transformedRect.height <= targetRect.height)
-        
-        // 应该居中
-        let centerX = transformedRect.x + transformedRect.width / 2
-        let centerY = transformedRect.y + transformedRect.height / 2
-        let targetCenterX = targetRect.x + targetRect.width / 2
-        let targetCenterY = targetRect.y + targetRect.height / 2
-        
-        XCTAssertEqual(centerX, targetCenterX, accuracy: 1.0)
-        XCTAssertEqual(centerY, targetCenterY, accuracy: 1.0)
+        XCTAssertEqual(compositeTransform, singleTransform)
     }
     
-    // MARK: - Caching Tests
+    // MARK: - Cache Tests
     
-    func testTransformationCaching() throws {
-        let point = Point(x: 100, y: 200)
+    func testTransformCache() throws {
+        let cacheKey = "test_transform"
+        let transform = CGAffineTransform(scaleX: 2.0, y: 2.0)
         
-        transformer.scale(by: 2.0)
-        transformer.translate(by: Point(x: 50, y: 75))
+        // 初始时缓存应该为空
+        XCTAssertNil(transformer.getCachedTransform(for: cacheKey))
         
-        // 第一次变换应该计算并缓存
-        let transform1 = transformer.transform(point: point)
+        // 缓存变换
+        transformer.cacheTransform(transform, for: cacheKey)
         
-        // 第二次变换应该使用缓存
-        let transform2 = transformer.transform(point: point)
-        
-        XCTAssertEqual(transform1.x, transform2.x, accuracy: 0.001)
-        XCTAssertEqual(transform1.y, transform2.y, accuracy: 0.001)
+        // 验证缓存
+        let cachedTransform = transformer.getCachedTransform(for: cacheKey)
+        XCTAssertNotNil(cachedTransform)
+        XCTAssertEqual(cachedTransform!, transform)
     }
     
     func testCacheInvalidation() throws {
-        let point = Point(x: 100, y: 200)
+        let cacheKey = "test_transform"
+        let transform = CGAffineTransform(scaleX: 2.0, y: 2.0)
         
-        transformer.scale(by: 2.0)
-        let transform1 = transformer.transform(point: point)
+        // 缓存变换
+        transformer.cacheTransform(transform, for: cacheKey)
+        XCTAssertNotNil(transformer.getCachedTransform(for: cacheKey))
         
-        // 修改变换应该使缓存失效
-        transformer.translate(by: Point(x: 50, y: 75))
-        let transform2 = transformer.transform(point: point)
+        // 清除缓存
+        transformer.clearTransformCache()
+        XCTAssertNil(transformer.getCachedTransform(for: cacheKey))
+    }
+    
+    // MARK: - Coordinate System Chain Tests
+    
+    func testFullCoordinateChain() throws {
+        // 测试完整的坐标变换链：屏幕 -> 窗口 -> 容器 -> 画布
+        let screenPoint = CGPoint(x: 500, y: 400)
+        let containerFrame = CGRect(x: 50, y: 50, width: 400, height: 300)
+        let canvasTransform = CGAffineTransform(scaleX: 0.5, y: 0.5)
         
-        XCTAssertNotEqual(transform1.x, transform2.x, accuracy: 0.001)
-        XCTAssertNotEqual(transform1.y, transform2.y, accuracy: 0.001)
+        // 屏幕 -> 窗口
+        let windowPoint = transformer.screenToWindow(screenPoint, in: testWindow)
+        
+        // 窗口 -> 容器
+        let containerPoint = transformer.windowToContainer(windowPoint, containerFrame: containerFrame)
+        
+        // 容器 -> 画布
+        let canvasPoint = transformer.containerToCanvas(containerPoint, canvasTransform: canvasTransform)
+        
+        // 验证反向变换
+        let backToContainer = transformer.canvasToContainer(canvasPoint, canvasTransform: canvasTransform)
+        let backToWindow = transformer.containerToWindow(backToContainer, containerFrame: containerFrame)
+        let backToScreen = transformer.windowToScreen(backToWindow, from: testWindow)
+        
+        XCTAssertEqual(backToScreen.x, screenPoint.x, accuracy: 0.001)
+        XCTAssertEqual(backToScreen.y, screenPoint.y, accuracy: 0.001)
     }
     
     // MARK: - Edge Cases Tests
     
-    func testZeroScale() throws {
-        let point = Point(x: 100, y: 200)
+    func testZeroSizeContainer() throws {
+        let windowPoint = CGPoint(x: 100, y: 100)
+        let zeroContainer = CGRect(x: 50, y: 50, width: 0, height: 0)
         
-        transformer.scale(by: 0.0)
-        let transformedPoint = transformer.transform(point: point)
-        
-        XCTAssertEqual(transformedPoint.x, 0, accuracy: 0.001)
-        XCTAssertEqual(transformedPoint.y, 0, accuracy: 0.001)
+        let containerPoint = transformer.windowToContainer(windowPoint, containerFrame: zeroContainer)
+        XCTAssertEqual(containerPoint.x, 50, accuracy: 0.001)
+        XCTAssertEqual(containerPoint.y, 50, accuracy: 0.001)
     }
     
-    func testNegativeScale() throws {
-        let point = Point(x: 100, y: 200)
+    func testNegativeCoordinates() throws {
+        let negativePoint = CGPoint(x: -100, y: -200)
+        let transform = CGAffineTransform(scaleX: 2.0, y: 2.0)
         
-        transformer.scale(by: -1.0)
-        let transformedPoint = transformer.transform(point: point)
+        let transformedPoint = transformer.transform(negativePoint, using: transform)
         
-        XCTAssertEqual(transformedPoint.x, -100, accuracy: 0.001)
-        XCTAssertEqual(transformedPoint.y, -200, accuracy: 0.001)
-    }
-    
-    func testVeryLargeTransformation() throws {
-        let point = Point(x: 1, y: 1)
-        
-        transformer.scale(by: 1000000.0)
-        let transformedPoint = transformer.transform(point: point)
-        
-        XCTAssertEqual(transformedPoint.x, 1000000.0, accuracy: 0.001)
-        XCTAssertEqual(transformedPoint.y, 1000000.0, accuracy: 0.001)
-    }
-    
-    func testVerySmallTransformation() throws {
-        let point = Point(x: 1000000, y: 1000000)
-        
-        transformer.scale(by: 0.000001)
-        let transformedPoint = transformer.transform(point: point)
-        
-        XCTAssertEqual(transformedPoint.x, 1.0, accuracy: 0.001)
-        XCTAssertEqual(transformedPoint.y, 1.0, accuracy: 0.001)
+        XCTAssertEqual(transformedPoint.x, -200, accuracy: 0.001)
+        XCTAssertEqual(transformedPoint.y, -400, accuracy: 0.001)
     }
     
     // MARK: - Performance Tests
     
-    func testTransformationPerformance() throws {
-        let points = (0..<10000).map { Point(x: Double($0), y: Double($0 * 2)) }
-        
-        transformer.scale(by: 1.5)
-        transformer.translate(by: Point(x: 100, y: 200))
+    func testTransformPerformance() throws {
+        let points = (0..<10000).map { CGPoint(x: Double($0), y: Double($0 * 2)) }
+        let transform = CGAffineTransform(scaleX: 1.5, y: 1.5).translatedBy(x: 100, y: 200)
         
         measure {
             for point in points {
-                _ = transformer.transform(point: point)
+                _ = transformer.transform(point, using: transform)
             }
         }
     }
     
-    func testStackOperationPerformance() throws {
+    func testCompositeTransformPerformance() throws {
+        let transforms = [
+            CGAffineTransform(scaleX: 1.1, y: 1.1),
+            CGAffineTransform(translationX: 10, y: 10),
+            CGAffineTransform(rotationAngle: 0.1)
+        ]
+        
         measure {
             for _ in 0..<1000 {
-                transformer.pushTransformation()
-                transformer.scale(by: 1.1)
-                transformer.translate(by: Point(x: 1, y: 1))
-                transformer.popTransformation()
+                _ = transformer.createCompositeTransform(transforms)
             }
         }
-    }
-    
-    // MARK: - Matrix Operations Tests
-    
-    func testTransformationMatrix() throws {
-        transformer.scale(by: 2.0)
-        transformer.translate(by: Point(x: 50, y: 75))
-        
-        let matrix = transformer.transformationMatrix
-        
-        // 验证矩阵元素
-        XCTAssertEqual(matrix.a, 2.0, accuracy: 0.001)  // x缩放
-        XCTAssertEqual(matrix.d, 2.0, accuracy: 0.001)  // y缩放
-        XCTAssertEqual(matrix.tx, 50, accuracy: 0.001)  // x平移
-        XCTAssertEqual(matrix.ty, 75, accuracy: 0.001)  // y平移
-    }
-    
-    func testSetTransformationMatrix() throws {
-        let matrix = CGAffineTransform(scaleX: 1.5, y: 1.5).translatedBy(x: 25, y: 35)
-        
-        transformer.setTransformationMatrix(matrix)
-        
-        let point = Point(x: 100, y: 200)
-        let transformedPoint = transformer.transform(point: point)
-        
-        XCTAssertEqual(transformedPoint.x, 175, accuracy: 0.001) // (100*1.5)+25
-        XCTAssertEqual(transformedPoint.y, 335, accuracy: 0.001) // (200*1.5)+35
     }
 }
