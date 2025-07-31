@@ -6,22 +6,27 @@ let package = Package(
     platforms: [
         .macOS(.v13)
     ],
-    products: [
-        .library(
-            name: "DataModelTests",
-            targets: ["DataModelTests"]
-        )
-    ],
-    dependencies: [
-        .package(path: "../../sources")
-    ],
+    products: [],
+    dependencies: [],
     targets: [
+        // 复制Common模块源码
+        .target(
+            name: "Common",
+            dependencies: [],
+            path: "Sources/Common"
+        ),
+        
+        // 复制DataModel模块源码
+        .target(
+            name: "DataModel",
+            dependencies: ["Common"],
+            path: "Sources/DataModel"
+        ),
+        
+        // 测试目标
         .testTarget(
             name: "DataModelTests",
-            dependencies: [
-                .product(name: "DataModel", package: "sources"),
-                .product(name: "Common", package: "sources")
-            ],
+            dependencies: ["DataModel", "Common"],
             path: "Tests/DataModelTests"
         )
     ]

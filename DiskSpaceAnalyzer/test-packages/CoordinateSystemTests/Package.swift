@@ -6,35 +6,28 @@ let package = Package(
     platforms: [
         .macOS(.v13)
     ],
-    products: [
-        .library(
-            name: "CoordinateSystem",
-            targets: ["CoordinateSystem"]
-        )
-    ],
-    dependencies: [
-        // 这里可以添加外部依赖
-    ],
+    products: [],
+    dependencies: [],
     targets: [
-        // Common模块 - 基础模块
+        // 复制Common模块源码
         .target(
             name: "Common",
             dependencies: [],
-            path: "../../sources/Common"
+            path: "Sources/Common"
         ),
         
-        // CoordinateSystem模块 - 坐标系统模块
+        // 复制CoordinateSystem模块源码
         .target(
             name: "CoordinateSystem",
             dependencies: ["Common"],
-            path: "../../sources/CoordinateSystem"
+            path: "Sources/CoordinateSystem"
         ),
         
-        // CoordinateSystemTests测试目标
+        // 测试目标
         .testTarget(
             name: "CoordinateSystemTests",
             dependencies: ["CoordinateSystem", "Common"],
-            path: "../../tests/CoordinateSystemTests"
+            path: "Tests/CoordinateSystemTests"
         )
     ]
 )

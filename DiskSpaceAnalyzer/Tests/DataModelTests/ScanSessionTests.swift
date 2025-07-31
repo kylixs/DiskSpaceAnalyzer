@@ -38,7 +38,7 @@ final class ScanSessionTests: BaseTestCase {
         XCTAssertNil(scanSession.completedAt)
         XCTAssertEqual(scanSession.statistics.filesScanned, 0)
         XCTAssertEqual(scanSession.statistics.directoriesScanned, 0)
-        XCTAssertEqual(scanSession.statistics.totalSize, 0)
+        XCTAssertEqual(scanSession.statistics.totalBytesScanned, 0)
     }
     
     func testStartScan() throws {
