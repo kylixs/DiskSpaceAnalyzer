@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import Common
 
 /// 扫描会话数据模型
 /// 记录扫描的完整生命周期和状态信息

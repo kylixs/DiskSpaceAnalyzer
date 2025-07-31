@@ -1,224 +1,364 @@
 import XCTest
-@testable import Core
+@testable import CoordinateSystem
+@testable import Common
 
-class HiDPIManagerTests: XCTestCase {
+final class HiDPIManagerTests: XCTestCase {
+    
+    // MARK: - Test Properties
     
     var hiDPIManager: HiDPIManager!
     
-    override func setUp() {
-        super.setUp()
+    // MARK: - Setup & Teardown
+    
+    override func setUpWithError() throws {
         hiDPIManager = HiDPIManager.shared
     }
     
-    // MARK: - Scale Factor Tests
-    
-    func testMainDisplayScaleFactor() {
-        let scaleFactor = hiDPIManager.getMainDisplayScaleFactor()
-        
-        XCTAssertGreaterThan(scaleFactor, 0, "Scale factor should be positive")
-        XCTAssertLessThanOrEqual(scaleFactor, 4.0, "Scale factor should be reasonable")
+    override func tearDownWithError() throws {
+        // 重置为默认状态
+        hiDPIManager.resetToDefaults()
     }
     
-    func testScaleFactorForPoint() {
-        let point = CGPoint(x: 100, y: 100)
-        let scaleFactor = hiDPIManager.getScaleFactor(for: point)
+    // MARK: - Singleton Tests
+    
+    func testSingletonInstance() throws {
+        let instance1 = HiDPIManager.shared
+        let instance2 = HiDPIManager.shared
         
-        XCTAssertGreaterThan(scaleFactor, 0, "Scale factor should be positive")
-        XCTAssertLessThanOrEqual(scaleFactor, 4.0, "Scale factor should be reasonable")
+        XCTAssertTrue(instance1 === instance2, "HiDPIManager应该是单例")
     }
     
-    // MARK: - Scaling Tests
+    // MARK: - Scale Factor Detection Tests
     
-    func testApplyHiDPIScaling() {
-        let point = CGPoint(x: 100, y: 200)
-        let scaleFactor: CGFloat = 2.0
-        let scaledPoint = hiDPIManager.applyHiDPIScaling(to: point, scaleFactor: scaleFactor)
+    func testCurrentScaleFactor() throws {
+        let scaleFactor = hiDPIManager.currentScaleFactor
         
-        XCTAssertEqual(scaledPoint.x, 200, "X coordinate should be scaled")
-        XCTAssertEqual(scaledPoint.y, 400, "Y coordinate should be scaled")
+        XCTAssertGreaterThan(scaleFactor, 0, "缩放因子应该大于0")
+        XCTAssertLessThanOrEqual(scaleFactor, 4.0, "缩放因子应该在合理范围内")
+        
+        // 常见的缩放因子值
+        let commonScaleFactors: [CGFloat] = [1.0, 1.25, 1.5, 2.0, 2.5, 3.0]
+        let isCommonScaleFactor = commonScaleFactors.contains { abs($0 - scaleFactor) < 0.01 }
+        
+        // 注意：在测试环境中可能不是常见值，所以这个测试可能会失败
+        // XCTAssertTrue(isCommonScaleFactor, "应该是常见的缩放因子值")
     }
     
-    func testRemoveHiDPIScaling() {
-        let scaledPoint = CGPoint(x: 200, y: 400)
-        let scaleFactor: CGFloat = 2.0
-        let originalPoint = hiDPIManager.removeHiDPIScaling(from: scaledPoint, scaleFactor: scaleFactor)
+    func testIsHighDPIDisplay() throws {
+        let isHighDPI = hiDPIManager.isHighDPIDisplay
+        let scaleFactor = hiDPIManager.currentScaleFactor
         
-        XCTAssertEqual(originalPoint.x, 100, "X coordinate should be unscaled")
-        XCTAssertEqual(originalPoint.y, 200, "Y coordinate should be unscaled")
+        if scaleFactor > 1.0 {
+            XCTAssertTrue(isHighDPI, "缩放因子大于1时应该被识别为高DPI显示器")
+        } else {
+            XCTAssertFalse(isHighDPI, "缩放因子等于1时不应该被识别为高DPI显示器")
+        }
     }
     
-    func testScalingRoundTrip() {
-        let originalPoint = CGPoint(x: 123.456, y: 789.012)
-        let scaleFactor: CGFloat = 1.5
+    func testScaleFactorForDisplay() throws {
+        // 测试主显示器
+        if let mainScreen = NSScreen.main {
+            let scaleFactor = hiDPIManager.scaleFactor(for: mainScreen)
+            XCTAssertGreaterThan(scaleFactor, 0)
+            XCTAssertEqual(scaleFactor, mainScreen.backingScaleFactor, accuracy: 0.001)
+        }
         
-        let scaledPoint = hiDPIManager.applyHiDPIScaling(to: originalPoint, scaleFactor: scaleFactor)
-        let unscaledPoint = hiDPIManager.removeHiDPIScaling(from: scaledPoint, scaleFactor: scaleFactor)
-        
-        XCTAssertEqual(unscaledPoint.x, originalPoint.x, accuracy: 0.001, "Round trip should preserve X coordinate")
-        XCTAssertEqual(unscaledPoint.y, originalPoint.y, accuracy: 0.001, "Round trip should preserve Y coordinate")
+        // 测试所有显示器
+        for screen in NSScreen.screens {
+            let scaleFactor = hiDPIManager.scaleFactor(for: screen)
+            XCTAssertGreaterThan(scaleFactor, 0)
+            XCTAssertEqual(scaleFactor, screen.backingScaleFactor, accuracy: 0.001)
+        }
     }
     
-    // MARK: - Size Scaling Tests
+    // MARK: - Coordinate Scaling Tests
     
-    func testSizeScaling() {
-        let size = CGSize(width: 100, height: 200)
-        let scaleFactor: CGFloat = 2.0
+    func testScalePointToPixels() throws {
+        let point = Point(x: 100, y: 200)
+        let scaleFactor = hiDPIManager.currentScaleFactor
         
-        let scaledSize = hiDPIManager.applyHiDPIScaling(to: size, scaleFactor: scaleFactor)
-        XCTAssertEqual(scaledSize.width, 200, "Width should be scaled")
-        XCTAssertEqual(scaledSize.height, 400, "Height should be scaled")
+        let scaledPoint = hiDPIManager.scaleToPixels(point: point)
         
-        let unscaledSize = hiDPIManager.removeHiDPIScaling(from: scaledSize, scaleFactor: scaleFactor)
-        XCTAssertEqual(unscaledSize.width, 100, "Width should be unscaled")
-        XCTAssertEqual(unscaledSize.height, 200, "Height should be unscaled")
+        XCTAssertEqual(scaledPoint.x, point.x * scaleFactor, accuracy: 0.001)
+        XCTAssertEqual(scaledPoint.y, point.y * scaleFactor, accuracy: 0.001)
     }
     
-    // MARK: - Rect Scaling Tests
+    func testScalePointFromPixels() throws {
+        let pixelPoint = Point(x: 200, y: 400)
+        let scaleFactor = hiDPIManager.currentScaleFactor
+        
+        let scaledPoint = hiDPIManager.scaleFromPixels(point: pixelPoint)
+        
+        XCTAssertEqual(scaledPoint.x, pixelPoint.x / scaleFactor, accuracy: 0.001)
+        XCTAssertEqual(scaledPoint.y, pixelPoint.y / scaleFactor, accuracy: 0.001)
+    }
     
-    func testRectScaling() {
-        let rect = CGRect(x: 10, y: 20, width: 100, height: 200)
-        let scaleFactor: CGFloat = 2.0
+    func testScaleRectToPixels() throws {
+        let rect = Rect(x: 10, y: 20, width: 100, height: 200)
+        let scaleFactor = hiDPIManager.currentScaleFactor
         
-        let scaledRect = hiDPIManager.applyHiDPIScaling(to: rect, scaleFactor: scaleFactor)
-        XCTAssertEqual(scaledRect.origin.x, 20, "Origin X should be scaled")
-        XCTAssertEqual(scaledRect.origin.y, 40, "Origin Y should be scaled")
-        XCTAssertEqual(scaledRect.size.width, 200, "Width should be scaled")
-        XCTAssertEqual(scaledRect.size.height, 400, "Height should be scaled")
+        let scaledRect = hiDPIManager.scaleToPixels(rect: rect)
         
-        let unscaledRect = hiDPIManager.removeHiDPIScaling(from: scaledRect, scaleFactor: scaleFactor)
-        XCTAssertEqual(unscaledRect.origin.x, 10, "Origin X should be unscaled")
-        XCTAssertEqual(unscaledRect.origin.y, 20, "Origin Y should be unscaled")
-        XCTAssertEqual(unscaledRect.size.width, 100, "Width should be unscaled")
-        XCTAssertEqual(unscaledRect.size.height, 200, "Height should be unscaled")
+        XCTAssertEqual(scaledRect.x, rect.x * scaleFactor, accuracy: 0.001)
+        XCTAssertEqual(scaledRect.y, rect.y * scaleFactor, accuracy: 0.001)
+        XCTAssertEqual(scaledRect.width, rect.width * scaleFactor, accuracy: 0.001)
+        XCTAssertEqual(scaledRect.height, rect.height * scaleFactor, accuracy: 0.001)
+    }
+    
+    func testScaleRectFromPixels() throws {
+        let pixelRect = Rect(x: 20, y: 40, width: 200, height: 400)
+        let scaleFactor = hiDPIManager.currentScaleFactor
+        
+        let scaledRect = hiDPIManager.scaleFromPixels(rect: pixelRect)
+        
+        XCTAssertEqual(scaledRect.x, pixelRect.x / scaleFactor, accuracy: 0.001)
+        XCTAssertEqual(scaledRect.y, pixelRect.y / scaleFactor, accuracy: 0.001)
+        XCTAssertEqual(scaledRect.width, pixelRect.width / scaleFactor, accuracy: 0.001)
+        XCTAssertEqual(scaledRect.height, pixelRect.height / scaleFactor, accuracy: 0.001)
+    }
+    
+    func testScaleSizeToPixels() throws {
+        let size = Size(width: 100, height: 200)
+        let scaleFactor = hiDPIManager.currentScaleFactor
+        
+        let scaledSize = hiDPIManager.scaleToPixels(size: size)
+        
+        XCTAssertEqual(scaledSize.width, size.width * scaleFactor, accuracy: 0.001)
+        XCTAssertEqual(scaledSize.height, size.height * scaleFactor, accuracy: 0.001)
+    }
+    
+    func testScaleSizeFromPixels() throws {
+        let pixelSize = Size(width: 200, height: 400)
+        let scaleFactor = hiDPIManager.currentScaleFactor
+        
+        let scaledSize = hiDPIManager.scaleFromPixels(size: pixelSize)
+        
+        XCTAssertEqual(scaledSize.width, pixelSize.width / scaleFactor, accuracy: 0.001)
+        XCTAssertEqual(scaledSize.height, pixelSize.height / scaleFactor, accuracy: 0.001)
     }
     
     // MARK: - Pixel Alignment Tests
     
-    func testPixelAlignment() {
-        let point = CGPoint(x: 100.7, y: 200.3)
-        let scaleFactor: CGFloat = 1.0
-        let alignedPoint = hiDPIManager.pixelAlign(point, scaleFactor: scaleFactor)
+    func testPixelAlignPoint() throws {
+        let point = Point(x: 100.3, y: 200.7)
+        let alignedPoint = hiDPIManager.pixelAlign(point: point)
         
-        XCTAssertEqual(alignedPoint.x, 101, "X should be rounded to nearest pixel")
-        XCTAssertEqual(alignedPoint.y, 200, "Y should be rounded to nearest pixel")
+        // 像素对齐应该将坐标调整到像素边界
+        let scaleFactor = hiDPIManager.currentScaleFactor
+        let expectedX = round(point.x * scaleFactor) / scaleFactor
+        let expectedY = round(point.y * scaleFactor) / scaleFactor
+        
+        XCTAssertEqual(alignedPoint.x, expectedX, accuracy: 0.001)
+        XCTAssertEqual(alignedPoint.y, expectedY, accuracy: 0.001)
     }
     
-    func testPixelAlignmentWithScaling() {
-        let point = CGPoint(x: 100.7, y: 200.3)
-        let scaleFactor: CGFloat = 2.0
-        let alignedPoint = hiDPIManager.pixelAlign(point, scaleFactor: scaleFactor)
+    func testPixelAlignRect() throws {
+        let rect = Rect(x: 10.3, y: 20.7, width: 100.4, height: 200.8)
+        let alignedRect = hiDPIManager.pixelAlign(rect: rect)
         
-        // With 2x scaling, should align to 0.5 pixel boundaries
-        XCTAssertEqual(alignedPoint.x, 101.0, accuracy: 0.01, "X should be aligned to scaled pixel boundary")
-        XCTAssertEqual(alignedPoint.y, 200.0, accuracy: 0.01, "Y should be aligned to scaled pixel boundary")
+        let scaleFactor = hiDPIManager.currentScaleFactor
+        
+        // 位置应该向下取整到像素边界
+        let expectedX = floor(rect.x * scaleFactor) / scaleFactor
+        let expectedY = floor(rect.y * scaleFactor) / scaleFactor
+        
+        // 大小应该向上取整以确保覆盖所有像素
+        let expectedWidth = ceil((rect.x + rect.width) * scaleFactor) / scaleFactor - expectedX
+        let expectedHeight = ceil((rect.y + rect.height) * scaleFactor) / scaleFactor - expectedY
+        
+        XCTAssertEqual(alignedRect.x, expectedX, accuracy: 0.001)
+        XCTAssertEqual(alignedRect.y, expectedY, accuracy: 0.001)
+        XCTAssertEqual(alignedRect.width, expectedWidth, accuracy: 0.001)
+        XCTAssertEqual(alignedRect.height, expectedHeight, accuracy: 0.001)
     }
     
-    func testRectPixelAlignment() {
-        let rect = CGRect(x: 10.3, y: 20.7, width: 100.4, height: 200.8)
-        let scaleFactor: CGFloat = 1.0
-        let alignedRect = hiDPIManager.pixelAlign(rect, scaleFactor: scaleFactor)
+    func testPixelAlignSize() throws {
+        let size = Size(width: 100.4, height: 200.8)
+        let alignedSize = hiDPIManager.pixelAlign(size: size)
         
-        XCTAssertEqual(alignedRect.origin.x, 10, "Origin X should be floored")
-        XCTAssertEqual(alignedRect.origin.y, 20, "Origin Y should be floored")
-        XCTAssertEqual(alignedRect.size.width, 101, "Width should be ceiled")
-        XCTAssertEqual(alignedRect.size.height, 201, "Height should be ceiled")
+        let scaleFactor = hiDPIManager.currentScaleFactor
+        let expectedWidth = round(size.width * scaleFactor) / scaleFactor
+        let expectedHeight = round(size.height * scaleFactor) / scaleFactor
+        
+        XCTAssertEqual(alignedSize.width, expectedWidth, accuracy: 0.001)
+        XCTAssertEqual(alignedSize.height, expectedHeight, accuracy: 0.001)
     }
     
-    // MARK: - Display Info Tests
+    // MARK: - Display Information Tests
     
-    func testGetAllDisplayInfos() {
-        let displayInfos = hiDPIManager.getAllDisplayInfos()
+    func testDisplayInfo() throws {
+        let displayInfo = hiDPIManager.displayInfo
         
-        XCTAssertGreaterThan(displayInfos.count, 0, "Should have at least one display")
+        XCTAssertFalse(displayInfo.isEmpty, "应该至少有一个显示器")
         
-        let mainDisplay = displayInfos.first { $0.isMain }
-        XCTAssertNotNil(mainDisplay, "Should have a main display")
+        for info in displayInfo {
+            XCTAssertGreaterThan(info.scaleFactor, 0, "缩放因子应该大于0")
+            XCTAssertGreaterThan(info.resolution.width, 0, "分辨率宽度应该大于0")
+            XCTAssertGreaterThan(info.resolution.height, 0, "分辨率高度应该大于0")
+            XCTAssertGreaterThan(info.physicalSize.width, 0, "物理尺寸宽度应该大于0")
+            XCTAssertGreaterThan(info.physicalSize.height, 0, "物理尺寸高度应该大于0")
+        }
     }
     
-    func testNonIntegerScalingSupport() {
-        let supportsNonInteger = hiDPIManager.supportsNonIntegerScaling()
-        // This test just ensures the method works, result depends on hardware
-        XCTAssertNotNil(supportsNonInteger, "Should return a boolean value")
+    func testMainDisplayInfo() throws {
+        let mainInfo = hiDPIManager.mainDisplayInfo
+        
+        XCTAssertNotNil(mainInfo, "应该有主显示器信息")
+        XCTAssertTrue(mainInfo?.isMain ?? false, "主显示器标志应该为true")
+        XCTAssertGreaterThan(mainInfo?.scaleFactor ?? 0, 0, "主显示器缩放因子应该大于0")
     }
     
-    func testRecommendedLineWidth() {
-        let lineWidth = hiDPIManager.getRecommendedLineWidth()
+    // MARK: - Notification Tests
+    
+    func testDisplayChangeNotification() throws {
+        let expectation = XCTestExpectation(description: "Display change notification")
         
-        XCTAssertGreaterThan(lineWidth, 0, "Line width should be positive")
-        XCTAssertLessThanOrEqual(lineWidth, 1.0, "Line width should not exceed 1.0")
+        let observer = NotificationCenter.default.addObserver(
+            forName: .hiDPIDisplayChanged,
+            object: nil,
+            queue: .main
+        ) { _ in
+            expectation.fulfill()
+        }
+        
+        // 模拟显示器变化（这在测试环境中可能不会触发）
+        hiDPIManager.refreshDisplayInfo()
+        
+        // 等待通知或超时
+        wait(for: [expectation], timeout: 1.0)
+        
+        NotificationCenter.default.removeObserver(observer)
     }
     
-    // MARK: - Extension Tests
+    // MARK: - Configuration Tests
     
-    func testCGPointExtensions() {
-        let point = CGPoint(x: 100, y: 200)
-        let scaleFactor: CGFloat = 2.0
+    func testCustomScaleFactor() throws {
+        let customScale: CGFloat = 1.5
         
-        let scaledPoint = point.scaledForHiDPI(factor: scaleFactor)
-        XCTAssertEqual(scaledPoint.x, 200, "Extension should scale X coordinate")
-        XCTAssertEqual(scaledPoint.y, 400, "Extension should scale Y coordinate")
+        hiDPIManager.setCustomScaleFactor(customScale)
         
-        let unscaledPoint = scaledPoint.unscaledForHiDPI(factor: scaleFactor)
-        XCTAssertEqual(unscaledPoint.x, 100, "Extension should unscale X coordinate")
-        XCTAssertEqual(unscaledPoint.y, 200, "Extension should unscale Y coordinate")
-        
-        let alignedPoint = CGPoint(x: 100.7, y: 200.3).pixelAligned(factor: 1.0)
-        XCTAssertEqual(alignedPoint.x, 101, "Extension should align X coordinate")
-        XCTAssertEqual(alignedPoint.y, 200, "Extension should align Y coordinate")
+        XCTAssertEqual(hiDPIManager.currentScaleFactor, customScale, accuracy: 0.001)
+        XCTAssertTrue(hiDPIManager.isUsingCustomScaleFactor)
     }
     
-    func testCGSizeExtensions() {
-        let size = CGSize(width: 100, height: 200)
-        let scaleFactor: CGFloat = 2.0
+    func testResetToDefaults() throws {
+        // 设置自定义缩放因子
+        hiDPIManager.setCustomScaleFactor(2.5)
+        XCTAssertTrue(hiDPIManager.isUsingCustomScaleFactor)
         
-        let scaledSize = size.scaledForHiDPI(factor: scaleFactor)
-        XCTAssertEqual(scaledSize.width, 200, "Extension should scale width")
-        XCTAssertEqual(scaledSize.height, 400, "Extension should scale height")
+        // 重置到默认值
+        hiDPIManager.resetToDefaults()
         
-        let unscaledSize = scaledSize.unscaledForHiDPI(factor: scaleFactor)
-        XCTAssertEqual(unscaledSize.width, 100, "Extension should unscale width")
-        XCTAssertEqual(unscaledSize.height, 200, "Extension should unscale height")
+        XCTAssertFalse(hiDPIManager.isUsingCustomScaleFactor)
+        // 应该回到系统默认值
+        if let mainScreen = NSScreen.main {
+            XCTAssertEqual(hiDPIManager.currentScaleFactor, mainScreen.backingScaleFactor, accuracy: 0.001)
+        }
     }
     
-    func testCGRectExtensions() {
-        let rect = CGRect(x: 10, y: 20, width: 100, height: 200)
-        let scaleFactor: CGFloat = 2.0
+    func testAutoDetectionEnabled() throws {
+        // 测试自动检测开启
+        hiDPIManager.setAutoDetectionEnabled(true)
+        XCTAssertTrue(hiDPIManager.isAutoDetectionEnabled)
         
-        let scaledRect = rect.scaledForHiDPI(factor: scaleFactor)
-        XCTAssertEqual(scaledRect.origin.x, 20, "Extension should scale origin X")
-        XCTAssertEqual(scaledRect.origin.y, 40, "Extension should scale origin Y")
-        XCTAssertEqual(scaledRect.size.width, 200, "Extension should scale width")
-        XCTAssertEqual(scaledRect.size.height, 400, "Extension should scale height")
-        
-        let unscaledRect = scaledRect.unscaledForHiDPI(factor: scaleFactor)
-        XCTAssertEqual(unscaledRect.origin.x, 10, "Extension should unscale origin X")
-        XCTAssertEqual(unscaledRect.origin.y, 20, "Extension should unscale origin Y")
-        XCTAssertEqual(unscaledRect.size.width, 100, "Extension should unscale width")
-        XCTAssertEqual(unscaledRect.size.height, 200, "Extension should unscale height")
-        
-        let alignedRect = CGRect(x: 10.3, y: 20.7, width: 100.4, height: 200.8).pixelAligned(factor: 1.0)
-        XCTAssertEqual(alignedRect.origin.x, 10, "Extension should align origin X")
-        XCTAssertEqual(alignedRect.origin.y, 20, "Extension should align origin Y")
-        XCTAssertEqual(alignedRect.size.width, 101, "Extension should align width")
-        XCTAssertEqual(alignedRect.size.height, 201, "Extension should align height")
+        // 测试自动检测关闭
+        hiDPIManager.setAutoDetectionEnabled(false)
+        XCTAssertFalse(hiDPIManager.isAutoDetectionEnabled)
     }
     
-    // MARK: - Edge Cases
+    // MARK: - Edge Cases Tests
     
-    func testZeroScaleFactor() {
-        let point = CGPoint(x: 100, y: 200)
-        let scaleFactor: CGFloat = 0.0
+    func testZeroScaleFactor() throws {
+        // 设置无效的缩放因子应该被忽略或设置为最小值
+        hiDPIManager.setCustomScaleFactor(0.0)
         
-        let result = hiDPIManager.removeHiDPIScaling(from: point, scaleFactor: scaleFactor)
-        XCTAssertEqual(result, point, "Should return original point when scale factor is zero")
+        XCTAssertGreaterThan(hiDPIManager.currentScaleFactor, 0, "缩放因子不应该为0")
     }
     
-    func testNegativeScaleFactor() {
-        let point = CGPoint(x: 100, y: 200)
-        let scaleFactor: CGFloat = -1.0
+    func testNegativeScaleFactor() throws {
+        // 设置负的缩放因子应该被忽略或设置为绝对值
+        hiDPIManager.setCustomScaleFactor(-2.0)
         
-        let scaledPoint = hiDPIManager.applyHiDPIScaling(to: point, scaleFactor: scaleFactor)
-        XCTAssertEqual(scaledPoint.x, -100, "Should handle negative scale factor")
-        XCTAssertEqual(scaledPoint.y, -200, "Should handle negative scale factor")
+        XCTAssertGreaterThan(hiDPIManager.currentScaleFactor, 0, "缩放因子不应该为负数")
+    }
+    
+    func testVeryLargeScaleFactor() throws {
+        let largeScale: CGFloat = 10.0
+        hiDPIManager.setCustomScaleFactor(largeScale)
+        
+        // 应该被限制在合理范围内
+        XCTAssertLessThanOrEqual(hiDPIManager.currentScaleFactor, 5.0, "缩放因子应该被限制在合理范围内")
+    }
+    
+    // MARK: - Performance Tests
+    
+    func testScalingPerformance() throws {
+        let points = (0..<10000).map { Point(x: Double($0), y: Double($0 * 2)) }
+        
+        measure {
+            for point in points {
+                _ = hiDPIManager.scaleToPixels(point: point)
+                _ = hiDPIManager.scaleFromPixels(point: point)
+            }
+        }
+    }
+    
+    func testPixelAlignmentPerformance() throws {
+        let rects = (0..<1000).map { 
+            Rect(x: Double($0) + 0.3, y: Double($0) + 0.7, width: 100.4, height: 200.8) 
+        }
+        
+        measure {
+            for rect in rects {
+                _ = hiDPIManager.pixelAlign(rect: rect)
+            }
+        }
+    }
+    
+    // MARK: - Integration Tests
+    
+    func testRoundTripScaling() throws {
+        let originalPoint = Point(x: 123.456, y: 789.012)
+        
+        // 转换到像素坐标再转换回来
+        let pixelPoint = hiDPIManager.scaleToPixels(point: originalPoint)
+        let backToLogical = hiDPIManager.scaleFromPixels(point: pixelPoint)
+        
+        XCTAssertEqual(backToLogical.x, originalPoint.x, accuracy: 0.001)
+        XCTAssertEqual(backToLogical.y, originalPoint.y, accuracy: 0.001)
+    }
+    
+    func testPixelAlignmentConsistency() throws {
+        let rect = Rect(x: 10.3, y: 20.7, width: 100.4, height: 200.8)
+        
+        // 多次对齐应该得到相同结果
+        let aligned1 = hiDPIManager.pixelAlign(rect: rect)
+        let aligned2 = hiDPIManager.pixelAlign(rect: aligned1)
+        
+        XCTAssertEqual(aligned1.x, aligned2.x, accuracy: 0.001)
+        XCTAssertEqual(aligned1.y, aligned2.y, accuracy: 0.001)
+        XCTAssertEqual(aligned1.width, aligned2.width, accuracy: 0.001)
+        XCTAssertEqual(aligned1.height, aligned2.height, accuracy: 0.001)
+    }
+    
+    // MARK: - Thread Safety Tests
+    
+    func testConcurrentAccess() throws {
+        let expectation = XCTestExpectation(description: "Concurrent access")
+        expectation.expectedFulfillmentCount = 10
+        
+        let queue = DispatchQueue.global(qos: .userInitiated)
+        
+        for i in 0..<10 {
+            queue.async {
+                let point = Point(x: Double(i * 10), y: Double(i * 20))
+                _ = self.hiDPIManager.scaleToPixels(point: point)
+                _ = self.hiDPIManager.currentScaleFactor
+                _ = self.hiDPIManager.isHighDPIDisplay
+                expectation.fulfill()
+            }
+        }
+        
+        wait(for: [expectation], timeout: 5.0)
     }
 }

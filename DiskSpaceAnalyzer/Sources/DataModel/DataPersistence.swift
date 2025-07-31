@@ -1,4 +1,5 @@
 import Foundation
+import Common
 
 /// 数据持久化管理器
 /// 支持基本的数据存储和加载功能

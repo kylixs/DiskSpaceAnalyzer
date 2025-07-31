@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import Common
 
 // MARK: - DataModel Module
 // 数据模型模块 - 提供核心数据结构和持久化功能

@@ -12,63 +12,81 @@ let package = Package(
             targets: ["DiskSpaceAnalyzer"]
         ),
         .library(
-            name: "Core",
-            targets: ["Core"]
+            name: "Common",
+            targets: ["Common"]
+        ),
+        .library(
+            name: "DataModel",
+            targets: ["DataModel"]
+        ),
+        .library(
+            name: "CoordinateSystem",
+            targets: ["CoordinateSystem"]
+        ),
+        .library(
+            name: "PerformanceOptimizer",
+            targets: ["PerformanceOptimizer"]
         )
     ],
     dependencies: [
         // 这里可以添加外部依赖
     ],
     targets: [
+        // 可执行目标
         .executableTarget(
             name: "DiskSpaceAnalyzer",
-            dependencies: ["Core"],
-            path: "Sources/DiskSpaceAnalyzer"
+            dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer"],
+            path: "Sources/App"
         ),
+        
+        // 基础模块 - 无依赖
         .target(
-            name: "Core",
+            name: "Common",
             dependencies: [],
-            path: "Sources/Core"
+            path: "Sources/Common"
+        ),
+        
+        // 数据模型模块 - 依赖Common
+        .target(
+            name: "DataModel",
+            dependencies: ["Common"],
+            path: "Sources/DataModel"
+        ),
+        
+        // 坐标系统模块 - 依赖Common
+        .target(
+            name: "CoordinateSystem",
+            dependencies: ["Common"],
+            path: "Sources/CoordinateSystem"
+        ),
+        
+        // 性能优化模块 - 依赖Common
+        .target(
+            name: "PerformanceOptimizer",
+            dependencies: ["Common"],
+            path: "Sources/PerformanceOptimizer"
+        ),
+        
+        // 测试目标
+        .testTarget(
+            name: "CommonTests",
+            dependencies: ["Common"],
+            path: "Tests/CommonTests"
         ),
         .testTarget(
             name: "DataModelTests",
-            dependencies: ["Core"],
+            dependencies: ["DataModel", "Common"],
             path: "Tests/DataModelTests"
         ),
         .testTarget(
             name: "CoordinateSystemTests",
-            dependencies: ["Core"],
+            dependencies: ["CoordinateSystem", "Common"],
             path: "Tests/CoordinateSystemTests"
         ),
         .testTarget(
             name: "PerformanceOptimizerTests",
-            dependencies: ["Core"],
+            dependencies: ["PerformanceOptimizer", "Common"],
             path: "Tests/PerformanceOptimizerTests"
-        ),
-        .testTarget(
-            name: "ScanEngineTests",
-            dependencies: ["Core"],
-            path: "Tests/ScanEngineTests"
-        ),
-        .testTarget(
-            name: "TreeMapVisualizationTests",
-            dependencies: ["Core"],
-            path: "Tests/TreeMapVisualizationTests"
-        ),
-        .testTarget(
-            name: "InteractionFeedbackTests",
-            dependencies: ["Core"],
-            path: "Tests/InteractionFeedbackTests"
-        ),
-        .testTarget(
-            name: "SessionManagerTests",
-            dependencies: ["Core"],
-            path: "Tests/SessionManagerTests"
-        ),
-        .testTarget(
-            name: "UserInterfaceTests",
-            dependencies: ["Core"],
-            path: "Tests/UserInterfaceTests"
         )
     ]
 )

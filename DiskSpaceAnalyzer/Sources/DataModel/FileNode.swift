@@ -1,4 +1,5 @@
 import Foundation
+import Common
 
 /// 文件/目录节点数据结构
 /// 支持UUID标识、父子关系管理和属性计算
