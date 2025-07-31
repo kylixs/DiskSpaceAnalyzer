@@ -24,14 +24,14 @@
    - **优先级：** 高 (基础设施)
    - **预估工期：** 3-4天
    - **依赖关系：** 无依赖
-   - **模块状态：** 🔄 处理中
+   - **模块状态：** ✅ 已完成（基础功能）
    - **核心任务：** CoordinateTransformer、HiDPIManager、MultiDisplayHandler、DebugVisualizer
 
 3. **[performance-optimizer.md](./performance-optimizer.md)** - 性能优化模块
    - **优先级：** 高 (基础设施)
    - **预估工期：** 3-4天
    - **依赖关系：** 无依赖
-   - **模块状态：** 待处理
+   - **模块状态：** 🔄 处理中
    - **核心任务：** CPUOptimizer、ThrottleManager、TaskScheduler、PerformanceMonitor
 
 ### 第2阶段 - 核心业务模块 (依赖基础设施)

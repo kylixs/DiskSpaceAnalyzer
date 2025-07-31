@@ -232,7 +232,7 @@ public struct GeometryUtilities {
 }
 
 /// 性能监控工具
-public struct PerformanceMonitor {
+public struct PerformanceUtils {
     public static func measureTime<T>(operation: () throws -> T) rethrows -> (result: T, time: TimeInterval) {
         let startTime = CFAbsoluteTimeGetCurrent()
         let result = try operation()
