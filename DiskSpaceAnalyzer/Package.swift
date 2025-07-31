@@ -26,6 +26,10 @@ let package = Package(
         .library(
             name: "PerformanceOptimizer",
             targets: ["PerformanceOptimizer"]
+        ),
+        .library(
+            name: "ScanEngine",
+            targets: ["ScanEngine"]
         )
     ],
     dependencies: [
@@ -35,7 +39,7 @@ let package = Package(
         // 可执行目标
         .executableTarget(
             name: "DiskSpaceAnalyzer",
-            dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer"],
+            dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer", "ScanEngine"],
             path: "Sources/App"
         ),
         
@@ -67,6 +71,13 @@ let package = Package(
             path: "Sources/PerformanceOptimizer"
         ),
         
+        // ScanEngine模块 - 文件系统扫描引擎
+        .target(
+            name: "ScanEngine",
+            dependencies: ["Common", "DataModel", "PerformanceOptimizer"],
+            path: "Sources/ScanEngine"
+        ),
+        
         // 测试目标
         .testTarget(
             name: "CommonTests",
@@ -87,6 +98,13 @@ let package = Package(
             name: "PerformanceOptimizerTests",
             dependencies: ["PerformanceOptimizer", "Common"],
             path: "Tests/PerformanceOptimizerTests"
+        ),
+        
+        // ScanEngine模块测试
+        .testTarget(
+            name: "ScanEngineTests",
+            dependencies: ["ScanEngine", "Common", "DataModel", "PerformanceOptimizer"],
+            path: "Tests/ScanEngineTests"
         )
     ]
 )

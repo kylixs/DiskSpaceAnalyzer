@@ -31,7 +31,7 @@
    - **优先级：** 高 (基础设施)
    - **预估工期：** 3-4天
    - **依赖关系：** 无依赖
-   - **模块状态：** 🔄 处理中
+   - **模块状态：** ✅ 已完成（核心功能）
    - **核心任务：** CPUOptimizer、ThrottleManager、TaskScheduler、PerformanceMonitor
 
 ### 第2阶段 - 核心业务模块 (依赖基础设施)
@@ -41,7 +41,7 @@
    - **优先级：** 高 (核心业务)
    - **预估工期：** 4-5天
    - **依赖关系：** DataModel, PerformanceOptimizer
-   - **模块状态：** 待处理
+   - **模块状态：** 🔄 处理中
    - **核心任务：** FileSystemScanner、ScanProgressManager、FileFilter、ScanTaskManager
 
 ### 第3阶段 - 界面组件模块 (依赖基础设施和数据)
