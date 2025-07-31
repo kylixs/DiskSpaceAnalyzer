@@ -5,7 +5,7 @@ import AppKit
 // 这个文件包含所有模块共享的工具类和扩展，避免重复定义
 
 /// 字节格式化工具
-public struct ByteFormatter {
+public class ByteFormatter {
     public static let shared = ByteFormatter()
     
     private let formatter: ByteCountFormatter
@@ -402,7 +402,7 @@ public struct SharedUtilities {
             return "\(Int(size)) \(units[unitIndex])"
         } else {
             let formatter = Foundation.NumberFormatter()
-            formatter.minimumFractionDigits = 0
+            formatter.minimumFractionDigits = precision
             formatter.maximumFractionDigits = precision
             let formattedSize = formatter.string(from: NSNumber(value: size)) ?? "\(size)"
             return "\(formattedSize) \(units[unitIndex])"
@@ -415,8 +415,8 @@ public struct SharedUtilities {
             return false
         }
         
-        // 检查是否包含非法字符
-        let invalidChars = CharacterSet(charactersIn: "\0")
+        // 检查是否包含非法字符（包括换行符）
+        let invalidChars = CharacterSet(charactersIn: "\0\n\r")
         return path.rangeOfCharacter(from: invalidChars) == nil
     }
     

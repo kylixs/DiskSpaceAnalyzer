@@ -49,6 +49,7 @@ public struct ScanStatistics: Codable, Equatable {
         totalBytesScanned = 0
         startTime = nil
         lastUpdated = Date()
+        scanDuration = 0.0
         scanSpeed = 0.0
         errorCount = 0
         skippedFiles = 0
@@ -199,6 +200,29 @@ public struct Point: Codable, Equatable, Hashable {
     }
 }
 
+// MARK: - Point运算符重载
+extension Point {
+    /// 加法运算符
+    public static func + (lhs: Point, rhs: Point) -> Point {
+        return Point(x: lhs.x + rhs.x, y: lhs.y + rhs.y)
+    }
+    
+    /// 减法运算符
+    public static func - (lhs: Point, rhs: Point) -> Point {
+        return Point(x: lhs.x - rhs.x, y: lhs.y - rhs.y)
+    }
+    
+    /// 标量乘法运算符
+    public static func * (lhs: Point, rhs: Double) -> Point {
+        return Point(x: lhs.x * rhs, y: lhs.y * rhs)
+    }
+    
+    /// 标量除法运算符
+    public static func / (lhs: Point, rhs: Double) -> Point {
+        return Point(x: lhs.x / rhs, y: lhs.y / rhs)
+    }
+}
+
 /// 尺寸 - 统一定义
 public struct Size: Codable, Equatable, Hashable {
     public var width: Double
@@ -230,6 +254,22 @@ public struct Size: Codable, Equatable, Hashable {
     /// 是否为空
     public var isEmpty: Bool {
         return width <= 0 || height <= 0
+    }
+    
+    /// 宽高比
+    public var aspectRatio: Double {
+        guard height != 0 else { return Double.infinity }
+        return width / height
+    }
+    
+    /// 等比缩放
+    public func scaled(by factor: Double) -> Size {
+        return Size(width: width * factor, height: height * factor)
+    }
+    
+    /// 非等比缩放
+    public func scaled(widthBy widthFactor: Double, heightBy heightFactor: Double) -> Size {
+        return Size(width: width * widthFactor, height: height * heightFactor)
     }
 }
 
@@ -266,6 +306,16 @@ public struct Rect: Codable, Equatable, Hashable {
         return Point(x: origin.x + size.width / 2, y: origin.y + size.height / 2)
     }
     
+    /// 最小X坐标
+    public var minX: Double {
+        return origin.x
+    }
+    
+    /// 最小Y坐标
+    public var minY: Double {
+        return origin.y
+    }
+    
     /// 最大X坐标
     public var maxX: Double {
         return origin.x + size.width
@@ -276,16 +326,76 @@ public struct Rect: Codable, Equatable, Hashable {
         return origin.y + size.height
     }
     
+    /// 中心X坐标
+    public var midX: Double {
+        return origin.x + size.width / 2
+    }
+    
+    /// 中心Y坐标
+    public var midY: Double {
+        return origin.y + size.height / 2
+    }
+    
+    /// X坐标
+    public var x: Double {
+        get { return origin.x }
+        set { origin.x = newValue }
+    }
+    
+    /// Y坐标
+    public var y: Double {
+        get { return origin.y }
+        set { origin.y = newValue }
+    }
+    
+    /// 宽度
+    public var width: Double {
+        get { return size.width }
+        set { size.width = newValue }
+    }
+    
+    /// 高度
+    public var height: Double {
+        get { return size.height }
+        set { size.height = newValue }
+    }
+    
+    /// 面积
+    public var area: Double {
+        return size.area
+    }
+    
+    /// 合并两个矩形
+    public func union(_ other: Rect) -> Rect {
+        let minX = min(self.minX, other.minX)
+        let minY = min(self.minY, other.minY)
+        let maxX = max(self.maxX, other.maxX)
+        let maxY = max(self.maxY, other.maxY)
+        return Rect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+    
+    /// 内缩矩形
+    public func insetBy(dx: Double, dy: Double) -> Rect {
+        return Rect(x: origin.x + dx, y: origin.y + dy, 
+                   width: size.width - 2 * dx, height: size.height - 2 * dy)
+    }
+    
+    /// 偏移矩形
+    public func offsetBy(dx: Double, dy: Double) -> Rect {
+        return Rect(x: origin.x + dx, y: origin.y + dy, 
+                   width: size.width, height: size.height)
+    }
+    
     /// 是否包含点
     public func contains(_ point: Point) -> Bool {
-        return point.x >= origin.x && point.x <= maxX &&
-               point.y >= origin.y && point.y <= maxY
+        return point.x >= origin.x && point.x < maxX &&
+               point.y >= origin.y && point.y < maxY
     }
     
     /// 是否与另一个矩形相交
     public func intersects(_ other: Rect) -> Bool {
-        return !(maxX < other.origin.x || origin.x > other.maxX ||
-                maxY < other.origin.y || origin.y > other.maxY)
+        return !(maxX <= other.origin.x || origin.x >= other.maxX ||
+                maxY <= other.origin.y || origin.y >= other.maxY)
     }
 }
 
@@ -358,6 +468,11 @@ extension ScanStatistics {
     /// 平均文件大小
     public var averageFileSize: Int64 {
         return filesScanned > 0 ? totalBytesScanned / Int64(filesScanned) : 0
+    }
+    
+    /// 扫描速度（项目/秒）
+    public var scanSpeedItemsPerSecond: Double {
+        return scanDuration > 0 ? Double(totalItemsScanned) / scanDuration : 0
     }
     
     /// 字节扫描速度（字节/秒）

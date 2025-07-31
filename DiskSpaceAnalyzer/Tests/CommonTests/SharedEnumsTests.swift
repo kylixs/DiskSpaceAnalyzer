@@ -1,7 +1,7 @@
 import XCTest
 @testable import Common
 
-final class SharedEnumsTests: XCTestCase {
+final class SharedEnumsTests: BaseTestCase {
     
     // MARK: - ErrorSeverity Tests
     

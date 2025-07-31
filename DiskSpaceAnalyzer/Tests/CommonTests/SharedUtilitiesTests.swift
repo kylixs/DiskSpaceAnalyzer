@@ -1,7 +1,7 @@
 import XCTest
 @testable import Common
 
-final class SharedUtilitiesTests: XCTestCase {
+final class SharedUtilitiesTests: BaseTestCase {
     
     // MARK: - File Size Formatting Tests
     
@@ -19,7 +19,7 @@ final class SharedUtilitiesTests: XCTestCase {
     
     func testFormatFileSizeWithPrecision() throws {
         // 测试指定精度的格式化
-        let size = 1536 // 1.5 KB
+        let size: Int64 = 1536 // 1.5 KB
         XCTAssertEqual(SharedUtilities.formatFileSize(size, precision: 0), "2 KB")
         XCTAssertEqual(SharedUtilities.formatFileSize(size, precision: 1), "1.5 KB")
         XCTAssertEqual(SharedUtilities.formatFileSize(size, precision: 2), "1.50 KB")
@@ -190,7 +190,7 @@ final class SharedUtilitiesTests: XCTestCase {
     // MARK: - Performance Tests
     
     func testFormatFileSizePerformance() throws {
-        measure {
+        self.measure {
             for i in 0..<10000 {
                 _ = SharedUtilities.formatFileSize(Int64(i * 1024))
             }
@@ -200,7 +200,7 @@ final class SharedUtilitiesTests: XCTestCase {
     func testPathValidationPerformance() throws {
         let paths = (0..<1000).map { "/Users/test/path\($0)/file.txt" }
         
-        measure {
+        self.measure {
             for path in paths {
                 _ = SharedUtilities.isValidPath(path)
             }

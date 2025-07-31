@@ -1,7 +1,7 @@
 import XCTest
 @testable import Common
 
-final class SharedConstantsTests: XCTestCase {
+final class SharedConstantsTests: BaseTestCase {
     
     // MARK: - Application Constants Tests
     
