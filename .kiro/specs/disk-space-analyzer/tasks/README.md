@@ -75,15 +75,15 @@
    - **优先级：** 高 (顶层UI)
    - **预估工期：** 6-8天
    - **依赖关系：** DirectoryTreeView, TreeMapVisualization, InteractionFeedback, SessionManager
-   - **模块状态：** 待处理
+   - **模块状态：** 🔄 处理中
    - **核心任务：** MainWindowController重构、ToolbarManager、DirectoryTreePanel、TreeMapPanel、StatusBarManager
 
 9. **[session-manager.md](./session-manager.md)** - 会话管理模块
    - **优先级：** 高 (顶层管理)
    - **预估工期：** 4-5天
    - **依赖关系：** 所有其他模块
-   - **模块状态：** 待处理
-   - **核心任务：** SessionController、ErrorHandler、LogManager、ProgressDialogManager、AppDelegate
+   - **模块状态：** ✅ 已完成（核心功能）
+   - **核心任务：** SessionController、ErrorHandler、PreferencesManager、RecentPathsManager
 
 ## 总体开发计划
 

@@ -46,6 +46,10 @@ let package = Package(
         .library(
             name: "SessionManager",
             targets: ["SessionManager"]
+        ),
+        .library(
+            name: "UserInterface",
+            targets: ["UserInterface"]
         )
     ],
     dependencies: [
@@ -55,7 +59,7 @@ let package = Package(
         // 可执行目标
         .executableTarget(
             name: "DiskSpaceAnalyzer",
-            dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer", "ScanEngine", "DirectoryTreeView", "TreeMapVisualization", "InteractionFeedback", "SessionManager"],
+            dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer", "ScanEngine", "DirectoryTreeView", "TreeMapVisualization", "InteractionFeedback", "SessionManager", "UserInterface"],
             path: "Sources/App"
         ),
         
@@ -122,6 +126,13 @@ let package = Package(
             path: "Sources/SessionManager"
         ),
         
+        // UserInterface模块 - 用户界面集成
+        .target(
+            name: "UserInterface",
+            dependencies: ["Common", "DataModel", "DirectoryTreeView", "TreeMapVisualization", "InteractionFeedback", "SessionManager"],
+            path: "Sources/UserInterface"
+        ),
+        
         // 测试目标
         .testTarget(
             name: "CommonTests",
@@ -177,6 +188,13 @@ let package = Package(
             name: "SessionManagerTests",
             dependencies: ["SessionManager", "Common", "DataModel", "PerformanceOptimizer", "ScanEngine"],
             path: "Tests/SessionManagerTests"
+        ),
+        
+        // UserInterface模块测试
+        .testTarget(
+            name: "UserInterfaceTests",
+            dependencies: ["UserInterface", "Common", "DataModel", "DirectoryTreeView", "TreeMapVisualization", "InteractionFeedback", "SessionManager"],
+            path: "Tests/UserInterfaceTests"
         )
     ]
 )
