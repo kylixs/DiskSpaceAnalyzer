@@ -21,6 +21,9 @@ public struct ScanStatistics: Codable, Equatable {
     /// 最后更新时间
     public var lastUpdated: Date = Date()
     
+    /// 扫描时长（秒）
+    public var scanDuration: TimeInterval = 0.0
+    
     /// 扫描速度（文件/秒）
     public var scanSpeed: Double = 0.0
     
@@ -325,6 +328,61 @@ public struct ColorInfo: Codable, Equatable {
 }
 
 // MARK: - 扩展
+
+extension ScanStatistics {
+    /// 更新文件数量
+    public mutating func updateFileCount(_ count: Int) {
+        self.filesScanned = count
+    }
+    
+    /// 更新目录数量
+    public mutating func updateDirectoryCount(_ count: Int) {
+        self.directoriesScanned = count
+    }
+    
+    /// 更新扫描字节数
+    public mutating func updateBytesScanned(_ bytes: Int64) {
+        self.totalBytesScanned = bytes
+    }
+    
+    /// 更新扫描时长
+    public mutating func updateDuration(_ duration: TimeInterval) {
+        self.scanDuration = duration
+    }
+    
+    /// 增加错误计数
+    public mutating func incrementErrorCount() {
+        self.errorCount += 1
+    }
+    
+    /// 平均文件大小
+    public var averageFileSize: Int64 {
+        return filesScanned > 0 ? totalBytesScanned / Int64(filesScanned) : 0
+    }
+    
+    /// 字节扫描速度（字节/秒）
+    public var bytesPerSecond: Double {
+        return scanDuration > 0 ? Double(totalBytesScanned) / scanDuration : 0
+    }
+}
+
+extension ScanStatus {
+    /// 检查是否可以转换到指定状态
+    public func canTransitionTo(_ newStatus: ScanStatus) -> Bool {
+        switch (self, newStatus) {
+        case (.pending, .scanning), (.pending, .cancelled):
+            return true
+        case (.scanning, .processing), (.scanning, .paused), (.scanning, .cancelled), (.scanning, .failed):
+            return true
+        case (.processing, .completed), (.processing, .failed), (.processing, .cancelled):
+            return true
+        case (.paused, .scanning), (.paused, .cancelled):
+            return true
+        default:
+            return false
+        }
+    }
+}
 
 extension DateFormatter {
     static let shortTime: DateFormatter = {

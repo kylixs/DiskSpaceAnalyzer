@@ -228,3 +228,96 @@ public enum ScanTaskPriority: Int, Codable, CaseIterable, Comparable {
         }
     }
 }
+
+/// 排序方式 - 统一定义
+public enum SortOrder: String, Codable, CaseIterable {
+    case name = "name"
+    case size = "size"
+    case type = "type"
+    case dateModified = "dateModified"
+    case dateCreated = "dateCreated"
+    
+    public var description: String {
+        switch self {
+        case .name: return "Name"
+        case .size: return "Size"
+        case .type: return "Type"
+        case .dateModified: return "Date Modified"
+        case .dateCreated: return "Date Created"
+        }
+    }
+    
+    public var isDateBased: Bool {
+        switch self {
+        case .dateModified, .dateCreated:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
+/// 视图模式 - 统一定义
+public enum ViewMode: String, Codable, CaseIterable {
+    case treemap = "treemap"
+    case list = "list"
+    case tree = "tree"
+    case sunburst = "sunburst"
+    
+    public var description: String {
+        switch self {
+        case .treemap: return "TreeMap"
+        case .list: return "List"
+        case .tree: return "Tree"
+        case .sunburst: return "Sunburst"
+        }
+    }
+    
+    public var supportsZoom: Bool {
+        switch self {
+        case .treemap, .tree, .sunburst:
+            return true
+        case .list:
+            return false
+        }
+    }
+    
+    public var isHierarchical: Bool {
+        switch self {
+        case .treemap, .tree, .sunburst:
+            return true
+        case .list:
+            return false
+        }
+    }
+}
+
+/// 日志级别 - 统一定义
+public enum LogLevel: String, Codable, CaseIterable, Comparable {
+    case debug = "debug"
+    case info = "info"
+    case warning = "warning"
+    case error = "error"
+    
+    public static func < (lhs: LogLevel, rhs: LogLevel) -> Bool {
+        let order: [LogLevel] = [.debug, .info, .warning, .error]
+        guard let lhsIndex = order.firstIndex(of: lhs),
+              let rhsIndex = order.firstIndex(of: rhs) else {
+            return false
+        }
+        return lhsIndex < rhsIndex
+    }
+    
+    public var description: String {
+        switch self {
+        case .debug: return "DEBUG"
+        case .info: return "INFO"
+        case .warning: return "WARNING"
+        case .error: return "ERROR"
+        }
+    }
+    
+    public func shouldLog(at level: LogLevel) -> Bool {
+        return self >= level
+    }
+}

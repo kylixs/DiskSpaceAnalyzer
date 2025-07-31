@@ -7,122 +7,101 @@ final class SharedConstantsTests: XCTestCase {
     
     func testApplicationConstants() throws {
         // 验证应用基本信息
-        XCTAssertFalse(SharedConstants.appName.isEmpty, "应用名称不能为空")
-        XCTAssertFalse(SharedConstants.appVersion.isEmpty, "应用版本不能为空")
-        XCTAssertFalse(SharedConstants.appBundleId.isEmpty, "Bundle ID不能为空")
+        XCTAssertFalse(AppConstants.appName.isEmpty, "应用名称不能为空")
+        XCTAssertFalse(AppConstants.appVersion.isEmpty, "应用版本不能为空")
+        XCTAssertFalse(AppConstants.appBundleId.isEmpty, "Bundle ID不能为空")
         
         // 验证版本格式
         let versionPattern = #"^\d+\.\d+(\.\d+)?$"#
         let versionRegex = try NSRegularExpression(pattern: versionPattern)
-        let versionRange = NSRange(location: 0, length: SharedConstants.appVersion.count)
-        XCTAssertTrue(versionRegex.firstMatch(in: SharedConstants.appVersion, range: versionRange) != nil,
+        let versionRange = NSRange(location: 0, length: AppConstants.appVersion.count)
+        XCTAssertTrue(versionRegex.firstMatch(in: AppConstants.appVersion, range: versionRange) != nil,
                      "版本号格式应为 x.y 或 x.y.z")
         
         // 验证Bundle ID格式
-        XCTAssertTrue(SharedConstants.appBundleId.contains("."), "Bundle ID应包含域名格式")
+        XCTAssertTrue(AppConstants.appBundleId.contains("."), "Bundle ID应包含域名格式")
     }
     
-    // MARK: - File System Constants Tests
+    // MARK: - Window Constants Tests
     
-    func testFileSystemConstants() throws {
-        // 验证文件大小限制
-        XCTAssertGreaterThan(SharedConstants.maxFileSize, 0, "最大文件大小应大于0")
-        XCTAssertLessThanOrEqual(SharedConstants.maxFileSize, Int64.max, "最大文件大小不应超过Int64最大值")
+    func testWindowConstants() throws {
+        // 验证窗口尺寸
+        XCTAssertGreaterThan(AppConstants.defaultWindowWidth, 0, "默认窗口宽度应大于0")
+        XCTAssertGreaterThan(AppConstants.defaultWindowHeight, 0, "默认窗口高度应大于0")
+        XCTAssertGreaterThan(AppConstants.minWindowWidth, 0, "最小窗口宽度应大于0")
+        XCTAssertGreaterThan(AppConstants.minWindowHeight, 0, "最小窗口高度应大于0")
         
-        // 验证目录深度限制
-        XCTAssertGreaterThan(SharedConstants.maxDirectoryDepth, 0, "最大目录深度应大于0")
-        XCTAssertLessThan(SharedConstants.maxDirectoryDepth, 1000, "最大目录深度应在合理范围内")
-        
-        // 验证扫描限制
-        XCTAssertGreaterThan(SharedConstants.maxFilesPerDirectory, 0, "每目录最大文件数应大于0")
-        XCTAssertGreaterThan(SharedConstants.scanTimeoutSeconds, 0, "扫描超时时间应大于0")
-    }
-    
-    // MARK: - Cache Constants Tests
-    
-    func testCacheConstants() throws {
-        // 验证缓存大小
-        XCTAssertGreaterThan(SharedConstants.defaultCacheSize, 0, "默认缓存大小应大于0")
-        XCTAssertLessThan(SharedConstants.defaultCacheSize, 1024 * 1024 * 1024, "缓存大小应在合理范围内") // < 1GB
-        
-        // 验证缓存过期时间
-        XCTAssertGreaterThan(SharedConstants.cacheExpirationTime, 0, "缓存过期时间应大于0")
-        XCTAssertLessThan(SharedConstants.cacheExpirationTime, 86400 * 30, "缓存过期时间应在合理范围内") // < 30天
-        
-        // 验证最大缓存条目数
-        XCTAssertGreaterThan(SharedConstants.maxCacheEntries, 0, "最大缓存条目数应大于0")
-        XCTAssertLessThan(SharedConstants.maxCacheEntries, 1000000, "最大缓存条目数应在合理范围内")
-    }
-    
-    // MARK: - UI Constants Tests
-    
-    func testUIConstants() throws {
-        // 验证最小窗口尺寸
-        XCTAssertGreaterThan(SharedConstants.minWindowWidth, 0, "最小窗口宽度应大于0")
-        XCTAssertGreaterThan(SharedConstants.minWindowHeight, 0, "最小窗口高度应大于0")
-        XCTAssertLessThan(SharedConstants.minWindowWidth, 2000, "最小窗口宽度应在合理范围内")
-        XCTAssertLessThan(SharedConstants.minWindowHeight, 2000, "最小窗口高度应在合理范围内")
-        
-        // 验证默认窗口尺寸
-        XCTAssertGreaterThanOrEqual(SharedConstants.defaultWindowWidth, SharedConstants.minWindowWidth,
+        // 验证窗口尺寸关系
+        XCTAssertGreaterThanOrEqual(AppConstants.defaultWindowWidth, AppConstants.minWindowWidth,
                                    "默认窗口宽度应不小于最小宽度")
-        XCTAssertGreaterThanOrEqual(SharedConstants.defaultWindowHeight, SharedConstants.minWindowHeight,
+        XCTAssertGreaterThanOrEqual(AppConstants.defaultWindowHeight, AppConstants.minWindowHeight,
                                    "默认窗口高度应不小于最小高度")
-        
-        // 验证动画时长
-        XCTAssertGreaterThan(SharedConstants.animationDuration, 0, "动画时长应大于0")
-        XCTAssertLessThan(SharedConstants.animationDuration, 5.0, "动画时长应在合理范围内")
     }
     
-    // MARK: - TreeMap Constants Tests
+    // MARK: - UI Layout Constants Tests
     
-    func testTreeMapConstants() throws {
-        // 验证TreeMap相关常量
-        XCTAssertGreaterThan(SharedConstants.minRectSize, 0, "最小矩形大小应大于0")
-        XCTAssertLessThan(SharedConstants.minRectSize, 100, "最小矩形大小应在合理范围内")
+    func testUILayoutConstants() throws {
+        // 验证界面布局常量
+        XCTAssertGreaterThan(AppConstants.toolbarHeight, 0, "工具栏高度应大于0")
+        XCTAssertGreaterThan(AppConstants.progressBarHeight, 0, "进度栏高度应大于0")
+        XCTAssertGreaterThan(AppConstants.statusBarHeight, 0, "状态栏高度应大于0")
         
-        XCTAssertGreaterThan(SharedConstants.defaultPadding, 0, "默认内边距应大于0")
-        XCTAssertLessThan(SharedConstants.defaultPadding, 50, "默认内边距应在合理范围内")
+        // 验证分栏比例
+        XCTAssertGreaterThan(AppConstants.splitViewLeftRatio, 0, "左侧分栏比例应大于0")
+        XCTAssertLessThan(AppConstants.splitViewLeftRatio, 1.0, "左侧分栏比例应小于1")
+        XCTAssertGreaterThan(AppConstants.splitViewRightRatio, 0, "右侧分栏比例应大于0")
+        XCTAssertLessThan(AppConstants.splitViewRightRatio, 1.0, "右侧分栏比例应小于1")
         
-        XCTAssertGreaterThan(SharedConstants.maxZoomLevel, 1.0, "最大缩放级别应大于1")
-        XCTAssertLessThan(SharedConstants.maxZoomLevel, 100.0, "最大缩放级别应在合理范围内")
-        
-        XCTAssertGreaterThan(SharedConstants.minZoomLevel, 0, "最小缩放级别应大于0")
-        XCTAssertLessThan(SharedConstants.minZoomLevel, 1.0, "最小缩放级别应小于1")
-        XCTAssertLessThan(SharedConstants.minZoomLevel, SharedConstants.maxZoomLevel, "最小缩放级别应小于最大缩放级别")
+        // 验证分栏比例总和
+        let totalRatio = AppConstants.splitViewLeftRatio + AppConstants.splitViewRightRatio
+        XCTAssertEqual(totalRatio, 1.0, accuracy: 0.001, "分栏比例总和应为1.0")
     }
     
-    // MARK: - Performance Constants Tests
+    // MARK: - Performance Thresholds Tests
     
-    func testPerformanceConstants() throws {
-        // 验证性能相关常量
-        XCTAssertGreaterThan(SharedConstants.maxConcurrentOperations, 0, "最大并发操作数应大于0")
-        XCTAssertLessThan(SharedConstants.maxConcurrentOperations, 100, "最大并发操作数应在合理范围内")
+    func testPerformanceThresholds() throws {
+        // 验证性能阈值
+        XCTAssertGreaterThan(PerformanceThresholds.uiResponseTime, 0, "UI响应时间阈值应大于0")
+        XCTAssertLessThan(PerformanceThresholds.uiResponseTime, 1.0, "UI响应时间阈值应在合理范围内")
         
-        XCTAssertGreaterThan(SharedConstants.backgroundQueueQoS.rawValue, 0, "后台队列QoS应有效")
+        XCTAssertGreaterThan(PerformanceThresholds.minScanSpeed, 0, "最小扫描速度应大于0")
+        XCTAssertLessThan(PerformanceThresholds.maxScanSpeed, 100000, "最大扫描速度应在合理范围内")
+        XCTAssertLessThan(PerformanceThresholds.minScanSpeed, PerformanceThresholds.maxScanSpeed,
+                         "最小扫描速度应小于最大扫描速度")
         
-        XCTAssertGreaterThan(SharedConstants.memoryWarningThreshold, 0, "内存警告阈值应大于0")
-        XCTAssertLessThan(SharedConstants.memoryWarningThreshold, 1.0, "内存警告阈值应小于1")
+        // 验证内存阈值
+        XCTAssertGreaterThan(PerformanceThresholds.memoryWarningThreshold, 0, "内存警告阈值应大于0")
+        XCTAssertGreaterThan(PerformanceThresholds.memoryCriticalThreshold, 0, "内存严重阈值应大于0")
+        XCTAssertLessThan(PerformanceThresholds.memoryWarningThreshold, PerformanceThresholds.memoryCriticalThreshold,
+                         "内存警告阈值应小于严重阈值")
+        
+        // 验证CPU阈值
+        XCTAssertGreaterThan(PerformanceThresholds.cpuWarningThreshold, 0, "CPU警告阈值应大于0")
+        XCTAssertLessThan(PerformanceThresholds.cpuWarningThreshold, 1.0, "CPU警告阈值应小于1")
+        XCTAssertGreaterThan(PerformanceThresholds.cpuCriticalThreshold, 0, "CPU严重阈值应大于0")
+        XCTAssertLessThan(PerformanceThresholds.cpuCriticalThreshold, 1.0, "CPU严重阈值应小于1")
+        XCTAssertLessThan(PerformanceThresholds.cpuWarningThreshold, PerformanceThresholds.cpuCriticalThreshold,
+                         "CPU警告阈值应小于严重阈值")
     }
     
     // MARK: - File Type Constants Tests
     
-    func testFileTypeConstants() throws {
+    func testSupportedFileTypes() throws {
         // 验证支持的文件类型
-        XCTAssertFalse(SharedConstants.supportedImageTypes.isEmpty, "支持的图片类型不应为空")
-        XCTAssertFalse(SharedConstants.supportedVideoTypes.isEmpty, "支持的视频类型不应为空")
-        XCTAssertFalse(SharedConstants.supportedAudioTypes.isEmpty, "支持的音频类型不应为空")
-        XCTAssertFalse(SharedConstants.supportedDocumentTypes.isEmpty, "支持的文档类型不应为空")
+        XCTAssertFalse(SupportedFileTypes.supportedImageTypes.isEmpty, "支持的图片类型不应为空")
+        XCTAssertFalse(SupportedFileTypes.supportedVideoTypes.isEmpty, "支持的视频类型不应为空")
+        XCTAssertFalse(SupportedFileTypes.supportedAudioTypes.isEmpty, "支持的音频类型不应为空")
+        XCTAssertFalse(SupportedFileTypes.supportedDocumentTypes.isEmpty, "支持的文档类型不应为空")
         
         // 验证常见文件类型存在
-        XCTAssertTrue(SharedConstants.supportedImageTypes.contains("jpg"), "应支持jpg图片")
-        XCTAssertTrue(SharedConstants.supportedImageTypes.contains("png"), "应支持png图片")
-        XCTAssertTrue(SharedConstants.supportedVideoTypes.contains("mp4"), "应支持mp4视频")
-        XCTAssertTrue(SharedConstants.supportedAudioTypes.contains("mp3"), "应支持mp3音频")
-        XCTAssertTrue(SharedConstants.supportedDocumentTypes.contains("pdf"), "应支持pdf文档")
+        XCTAssertTrue(SupportedFileTypes.supportedImageTypes.contains("jpg"), "应支持jpg图片")
+        XCTAssertTrue(SupportedFileTypes.supportedImageTypes.contains("png"), "应支持png图片")
+        XCTAssertTrue(SupportedFileTypes.supportedVideoTypes.contains("mp4"), "应支持mp4视频")
+        XCTAssertTrue(SupportedFileTypes.supportedAudioTypes.contains("mp3"), "应支持mp3音频")
+        XCTAssertTrue(SupportedFileTypes.supportedDocumentTypes.contains("pdf"), "应支持pdf文档")
         
         // 验证文件类型格式
-        for imageType in SharedConstants.supportedImageTypes {
+        for imageType in SupportedFileTypes.supportedImageTypes {
             XCTAssertFalse(imageType.isEmpty, "图片类型不应为空")
             XCTAssertFalse(imageType.contains("."), "图片类型不应包含点号")
         }
@@ -130,65 +109,130 @@ final class SharedConstantsTests: XCTestCase {
     
     // MARK: - Color Constants Tests
     
-    func testColorConstants() throws {
+    func testDefaultColors() throws {
         // 验证默认颜色
-        XCTAssertNotNil(SharedConstants.defaultFileColor, "默认文件颜色不应为nil")
-        XCTAssertNotNil(SharedConstants.defaultDirectoryColor, "默认目录颜色不应为nil")
-        XCTAssertNotNil(SharedConstants.highlightColor, "高亮颜色不应为nil")
-        XCTAssertNotNil(SharedConstants.selectionColor, "选择颜色不应为nil")
+        XCTAssertNotNil(DefaultColors.defaultFileColor, "默认文件颜色不应为nil")
+        XCTAssertNotNil(DefaultColors.defaultDirectoryColor, "默认目录颜色不应为nil")
+        XCTAssertNotNil(DefaultColors.highlightColor, "高亮颜色不应为nil")
+        XCTAssertNotNil(DefaultColors.selectionColor, "选择颜色不应为nil")
         
         // 验证颜色数组
-        XCTAssertFalse(SharedConstants.fileTypeColors.isEmpty, "文件类型颜色数组不应为空")
-        XCTAssertGreaterThan(SharedConstants.fileTypeColors.count, 5, "应有足够的文件类型颜色")
+        XCTAssertFalse(DefaultColors.fileTypeColors.isEmpty, "文件类型颜色数组不应为空")
+        XCTAssertGreaterThan(DefaultColors.fileTypeColors.count, 5, "应有足够的文件类型颜色")
         
         // 验证颜色有效性
-        for color in SharedConstants.fileTypeColors {
+        for color in DefaultColors.fileTypeColors {
             XCTAssertNotNil(color, "颜色不应为nil")
         }
     }
     
     // MARK: - Network Constants Tests
     
-    func testNetworkConstants() throws {
+    func testNetworkConfig() throws {
         // 验证网络超时设置
-        XCTAssertGreaterThan(SharedConstants.networkTimeout, 0, "网络超时时间应大于0")
-        XCTAssertLessThan(SharedConstants.networkTimeout, 300, "网络超时时间应在合理范围内") // < 5分钟
+        XCTAssertGreaterThan(NetworkConfig.networkTimeout, 0, "网络超时时间应大于0")
+        XCTAssertLessThan(NetworkConfig.networkTimeout, 300, "网络超时时间应在合理范围内") // < 5分钟
         
         // 验证重试次数
-        XCTAssertGreaterThanOrEqual(SharedConstants.maxRetryCount, 0, "最大重试次数应不小于0")
-        XCTAssertLessThan(SharedConstants.maxRetryCount, 10, "最大重试次数应在合理范围内")
+        XCTAssertGreaterThanOrEqual(NetworkConfig.maxRetryCount, 0, "最大重试次数应不小于0")
+        XCTAssertLessThan(NetworkConfig.maxRetryCount, 10, "最大重试次数应在合理范围内")
     }
     
-    // MARK: - Logging Constants Tests
+    // MARK: - Log Constants Tests
     
-    func testLoggingConstants() throws {
+    func testLogConfig() throws {
         // 验证日志级别
-        XCTAssertNotNil(SharedConstants.defaultLogLevel, "默认日志级别不应为nil")
+        XCTAssertNotNil(LogConfig.defaultLogLevel, "默认日志级别不应为nil")
         
         // 验证日志文件大小限制
-        XCTAssertGreaterThan(SharedConstants.maxLogFileSize, 0, "最大日志文件大小应大于0")
-        XCTAssertLessThan(SharedConstants.maxLogFileSize, 100 * 1024 * 1024, "日志文件大小应在合理范围内") // < 100MB
+        XCTAssertGreaterThan(LogConfig.maxLogFileSize, 0, "最大日志文件大小应大于0")
+        XCTAssertLessThan(LogConfig.maxLogFileSize, 100 * 1024 * 1024, "日志文件大小应在合理范围内") // < 100MB
         
         // 验证日志文件数量限制
-        XCTAssertGreaterThan(SharedConstants.maxLogFiles, 0, "最大日志文件数应大于0")
-        XCTAssertLessThan(SharedConstants.maxLogFiles, 100, "最大日志文件数应在合理范围内")
+        XCTAssertGreaterThan(LogConfig.maxLogFiles, 0, "最大日志文件数应大于0")
+        XCTAssertLessThan(LogConfig.maxLogFiles, 100, "最大日志文件数应在合理范围内")
+    }
+    
+    // MARK: - TreeMap Constants Tests
+    
+    func testTreeMapConstants() throws {
+        // 验证TreeMap相关常量
+        XCTAssertGreaterThan(AppConstants.minRectSize, 0, "最小矩形大小应大于0")
+        XCTAssertLessThan(AppConstants.minRectSize, 100, "最小矩形大小应在合理范围内")
+        
+        XCTAssertGreaterThan(AppConstants.maxRectSize, AppConstants.minRectSize, "最大矩形大小应大于最小矩形大小")
+        
+        XCTAssertGreaterThan(AppConstants.rectBorderWidth, 0, "矩形边框宽度应大于0")
+        XCTAssertLessThan(AppConstants.rectBorderWidth, 10, "矩形边框宽度应在合理范围内")
+        
+        XCTAssertGreaterThanOrEqual(AppConstants.rectCornerRadius, 0, "矩形圆角半径应不小于0")
+        XCTAssertLessThan(AppConstants.rectCornerRadius, 20, "矩形圆角半径应在合理范围内")
+    }
+    
+    // MARK: - Animation Constants Tests
+    
+    func testAnimationConstants() throws {
+        // 验证动画时长
+        XCTAssertGreaterThan(AppConstants.defaultAnimationDuration, 0, "默认动画时长应大于0")
+        XCTAssertLessThan(AppConstants.defaultAnimationDuration, 5.0, "默认动画时长应在合理范围内")
+        
+        XCTAssertGreaterThan(AppConstants.fastAnimationDuration, 0, "快速动画时长应大于0")
+        XCTAssertLessThan(AppConstants.fastAnimationDuration, AppConstants.defaultAnimationDuration,
+                         "快速动画时长应小于默认时长")
+        
+        XCTAssertGreaterThan(AppConstants.slowAnimationDuration, AppConstants.defaultAnimationDuration,
+                         "慢速动画时长应大于默认时长")
+        XCTAssertLessThan(AppConstants.slowAnimationDuration, 10.0, "慢速动画时长应在合理范围内")
+    }
+    
+    // MARK: - File System Constants Tests
+    
+    func testFileSystemConstants() throws {
+        // 验证文件系统限制
+        XCTAssertGreaterThan(AppConstants.maxPathLength, 0, "最大路径长度应大于0")
+        XCTAssertGreaterThan(AppConstants.maxFileNameLength, 0, "最大文件名长度应大于0")
+        XCTAssertLessThan(AppConstants.maxFileNameLength, AppConstants.maxPathLength,
+                         "最大文件名长度应小于最大路径长度")
+        
+        // 验证扫描超时
+        XCTAssertGreaterThan(AppConstants.defaultScanTimeout, 0, "默认扫描超时时间应大于0")
+        XCTAssertLessThan(AppConstants.defaultScanTimeout, 3600, "扫描超时时间应在合理范围内") // < 1小时
+    }
+    
+    // MARK: - Performance Constants Tests
+    
+    func testPerformanceConstants() throws {
+        // 验证性能相关常量
+        XCTAssertGreaterThan(AppConstants.maxConcurrentScans, 0, "最大并发扫描数应大于0")
+        XCTAssertLessThan(AppConstants.maxConcurrentScans, 20, "最大并发扫描数应在合理范围内")
+        
+        XCTAssertGreaterThan(AppConstants.defaultUpdateInterval, 0, "默认更新间隔应大于0")
+        XCTAssertLessThan(AppConstants.defaultUpdateInterval, 5.0, "默认更新间隔应在合理范围内")
+        
+        XCTAssertGreaterThan(AppConstants.maxMemoryUsage, 0, "最大内存使用应大于0")
+        XCTAssertLessThan(AppConstants.maxMemoryUsage, 1024 * 1024 * 1024, "最大内存使用应在合理范围内") // < 1GB
+        
+        XCTAssertGreaterThan(AppConstants.maxCacheSize, 0, "最大缓存大小应大于0")
+        XCTAssertLessThan(AppConstants.maxCacheSize, 100000, "最大缓存大小应在合理范围内")
     }
     
     // MARK: - Constants Consistency Tests
     
     func testConstantsConsistency() throws {
         // 验证窗口尺寸一致性
-        XCTAssertLessThanOrEqual(SharedConstants.minWindowWidth, SharedConstants.defaultWindowWidth,
+        XCTAssertLessThanOrEqual(AppConstants.minWindowWidth, AppConstants.defaultWindowWidth,
                                 "最小窗口宽度应不大于默认宽度")
-        XCTAssertLessThanOrEqual(SharedConstants.minWindowHeight, SharedConstants.defaultWindowHeight,
+        XCTAssertLessThanOrEqual(AppConstants.minWindowHeight, AppConstants.defaultWindowHeight,
                                 "最小窗口高度应不大于默认高度")
         
-        // 验证缓存设置一致性
-        XCTAssertLessThanOrEqual(SharedConstants.defaultCacheSize / SharedConstants.maxCacheEntries, 1024 * 1024,
-                                "平均每个缓存条目大小应在合理范围内")
-        
         // 验证性能设置一致性
-        XCTAssertLessThanOrEqual(SharedConstants.maxConcurrentOperations, ProcessInfo.processInfo.processorCount * 4,
-                                "最大并发操作数应与CPU核心数相关")
+        XCTAssertLessThanOrEqual(AppConstants.maxConcurrentScans, ProcessInfo.processInfo.processorCount * 4,
+                                "最大并发扫描数应与CPU核心数相关")
+        
+        // 验证动画时长一致性
+        XCTAssertLessThan(AppConstants.fastAnimationDuration, AppConstants.defaultAnimationDuration,
+                         "快速动画应比默认动画快")
+        XCTAssertGreaterThan(AppConstants.slowAnimationDuration, AppConstants.defaultAnimationDuration,
+                            "慢速动画应比默认动画慢")
     }
 }

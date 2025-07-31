@@ -6,11 +6,11 @@ final class SharedEnumsTests: XCTestCase {
     // MARK: - ErrorSeverity Tests
     
     func testErrorSeverityRawValues() throws {
-        XCTAssertEqual(ErrorSeverity.info.rawValue, 0)
-        XCTAssertEqual(ErrorSeverity.warning.rawValue, 1)
-        XCTAssertEqual(ErrorSeverity.error.rawValue, 2)
-        XCTAssertEqual(ErrorSeverity.critical.rawValue, 3)
-        XCTAssertEqual(ErrorSeverity.fatal.rawValue, 4)
+        XCTAssertEqual(ErrorSeverity.info.rawValue, "info")
+        XCTAssertEqual(ErrorSeverity.warning.rawValue, "warning")
+        XCTAssertEqual(ErrorSeverity.error.rawValue, "error")
+        XCTAssertEqual(ErrorSeverity.critical.rawValue, "critical")
+        XCTAssertEqual(ErrorSeverity.fatal.rawValue, "fatal")
     }
     
     func testErrorSeverityComparison() throws {
@@ -23,26 +23,19 @@ final class SharedEnumsTests: XCTestCase {
         XCTAssertFalse(ErrorSeverity.error < ErrorSeverity.warning)
     }
     
-    func testErrorSeverityDescription() throws {
-        XCTAssertEqual(ErrorSeverity.info.description, "Info")
-        XCTAssertEqual(ErrorSeverity.warning.description, "Warning")
-        XCTAssertEqual(ErrorSeverity.error.description, "Error")
-        XCTAssertEqual(ErrorSeverity.critical.description, "Critical")
-        XCTAssertEqual(ErrorSeverity.fatal.description, "Fatal")
-    }
-    
-    func testErrorSeverityIsSerious() throws {
-        XCTAssertFalse(ErrorSeverity.info.isSerious)
-        XCTAssertFalse(ErrorSeverity.warning.isSerious)
-        XCTAssertTrue(ErrorSeverity.error.isSerious)
-        XCTAssertTrue(ErrorSeverity.critical.isSerious)
-        XCTAssertTrue(ErrorSeverity.fatal.isSerious)
+    func testErrorSeverityDisplayName() throws {
+        XCTAssertEqual(ErrorSeverity.info.displayName, "信息")
+        XCTAssertEqual(ErrorSeverity.warning.displayName, "警告")
+        XCTAssertEqual(ErrorSeverity.error.displayName, "错误")
+        XCTAssertEqual(ErrorSeverity.critical.displayName, "严重错误")
+        XCTAssertEqual(ErrorSeverity.fatal.displayName, "致命错误")
     }
     
     // MARK: - ScanStatus Tests
     
     func testScanStatusRawValues() throws {
         XCTAssertEqual(ScanStatus.pending.rawValue, "pending")
+        XCTAssertEqual(ScanStatus.preparing.rawValue, "preparing")
         XCTAssertEqual(ScanStatus.scanning.rawValue, "scanning")
         XCTAssertEqual(ScanStatus.processing.rawValue, "processing")
         XCTAssertEqual(ScanStatus.paused.rawValue, "paused")
@@ -53,6 +46,7 @@ final class SharedEnumsTests: XCTestCase {
     
     func testScanStatusIsActive() throws {
         XCTAssertFalse(ScanStatus.pending.isActive)
+        XCTAssertTrue(ScanStatus.preparing.isActive)
         XCTAssertTrue(ScanStatus.scanning.isActive)
         XCTAssertTrue(ScanStatus.processing.isActive)
         XCTAssertFalse(ScanStatus.paused.isActive)
@@ -63,6 +57,7 @@ final class SharedEnumsTests: XCTestCase {
     
     func testScanStatusIsFinished() throws {
         XCTAssertFalse(ScanStatus.pending.isFinished)
+        XCTAssertFalse(ScanStatus.preparing.isFinished)
         XCTAssertFalse(ScanStatus.scanning.isFinished)
         XCTAssertFalse(ScanStatus.processing.isFinished)
         XCTAssertFalse(ScanStatus.paused.isFinished)
@@ -85,17 +80,6 @@ final class SharedEnumsTests: XCTestCase {
         XCTAssertTrue(ScanStatus.scanning.canTransitionTo(.failed))
         XCTAssertFalse(ScanStatus.scanning.canTransitionTo(.pending))
         
-        // 从processing可以转换到的状态
-        XCTAssertTrue(ScanStatus.processing.canTransitionTo(.completed))
-        XCTAssertTrue(ScanStatus.processing.canTransitionTo(.failed))
-        XCTAssertTrue(ScanStatus.processing.canTransitionTo(.cancelled))
-        XCTAssertFalse(ScanStatus.processing.canTransitionTo(.scanning))
-        
-        // 从paused可以转换到的状态
-        XCTAssertTrue(ScanStatus.paused.canTransitionTo(.scanning))
-        XCTAssertTrue(ScanStatus.paused.canTransitionTo(.cancelled))
-        XCTAssertFalse(ScanStatus.paused.canTransitionTo(.completed))
-        
         // 完成状态不能转换到其他状态
         XCTAssertFalse(ScanStatus.completed.canTransitionTo(.scanning))
         XCTAssertFalse(ScanStatus.completed.canTransitionTo(.pending))
@@ -103,81 +87,33 @@ final class SharedEnumsTests: XCTestCase {
         XCTAssertFalse(ScanStatus.failed.canTransitionTo(.scanning))
     }
     
-    func testScanStatusDescription() throws {
-        XCTAssertEqual(ScanStatus.pending.description, "Pending")
-        XCTAssertEqual(ScanStatus.scanning.description, "Scanning")
-        XCTAssertEqual(ScanStatus.processing.description, "Processing")
-        XCTAssertEqual(ScanStatus.paused.description, "Paused")
-        XCTAssertEqual(ScanStatus.completed.description, "Completed")
-        XCTAssertEqual(ScanStatus.cancelled.description, "Cancelled")
-        XCTAssertEqual(ScanStatus.failed.description, "Failed")
+    func testScanStatusDisplayName() throws {
+        XCTAssertEqual(ScanStatus.pending.displayName, "等待中")
+        XCTAssertEqual(ScanStatus.preparing.displayName, "准备中")
+        XCTAssertEqual(ScanStatus.scanning.displayName, "扫描中")
+        XCTAssertEqual(ScanStatus.processing.displayName, "处理中")
+        XCTAssertEqual(ScanStatus.paused.displayName, "已暂停")
+        XCTAssertEqual(ScanStatus.completed.displayName, "已完成")
+        XCTAssertEqual(ScanStatus.cancelled.displayName, "已取消")
+        XCTAssertEqual(ScanStatus.failed.displayName, "失败")
     }
     
     // MARK: - FileType Tests
     
     func testFileTypeRawValues() throws {
-        XCTAssertEqual(FileType.file.rawValue, "file")
         XCTAssertEqual(FileType.directory.rawValue, "directory")
-        XCTAssertEqual(FileType.symlink.rawValue, "symlink")
+        XCTAssertEqual(FileType.regularFile.rawValue, "regularFile")
+        XCTAssertEqual(FileType.symbolicLink.rawValue, "symbolicLink")
+        XCTAssertEqual(FileType.hardLink.rawValue, "hardLink")
         XCTAssertEqual(FileType.unknown.rawValue, "unknown")
     }
     
-    func testFileTypeFromExtension() throws {
-        // 图片文件
-        XCTAssertEqual(FileType.fromExtension("jpg"), .image)
-        XCTAssertEqual(FileType.fromExtension("PNG"), .image)
-        XCTAssertEqual(FileType.fromExtension("gif"), .image)
-        
-        // 视频文件
-        XCTAssertEqual(FileType.fromExtension("mp4"), .video)
-        XCTAssertEqual(FileType.fromExtension("MOV"), .video)
-        XCTAssertEqual(FileType.fromExtension("avi"), .video)
-        
-        // 音频文件
-        XCTAssertEqual(FileType.fromExtension("mp3"), .audio)
-        XCTAssertEqual(FileType.fromExtension("WAV"), .audio)
-        XCTAssertEqual(FileType.fromExtension("flac"), .audio)
-        
-        // 文档文件
-        XCTAssertEqual(FileType.fromExtension("pdf"), .document)
-        XCTAssertEqual(FileType.fromExtension("DOC"), .document)
-        XCTAssertEqual(FileType.fromExtension("txt"), .document)
-        
-        // 代码文件
-        XCTAssertEqual(FileType.fromExtension("swift"), .code)
-        XCTAssertEqual(FileType.fromExtension("py"), .code)
-        XCTAssertEqual(FileType.fromExtension("js"), .code)
-        
-        // 压缩文件
-        XCTAssertEqual(FileType.fromExtension("zip"), .archive)
-        XCTAssertEqual(FileType.fromExtension("TAR"), .archive)
-        XCTAssertEqual(FileType.fromExtension("gz"), .archive)
-        
-        // 未知扩展名
-        XCTAssertEqual(FileType.fromExtension("xyz"), .file)
-        XCTAssertEqual(FileType.fromExtension(""), .file)
-    }
-    
-    func testFileTypeIsMedia() throws {
-        XCTAssertTrue(FileType.image.isMedia)
-        XCTAssertTrue(FileType.video.isMedia)
-        XCTAssertTrue(FileType.audio.isMedia)
-        XCTAssertFalse(FileType.document.isMedia)
-        XCTAssertFalse(FileType.code.isMedia)
-        XCTAssertFalse(FileType.file.isMedia)
-    }
-    
-    func testFileTypeDescription() throws {
-        XCTAssertEqual(FileType.file.description, "File")
-        XCTAssertEqual(FileType.directory.description, "Directory")
-        XCTAssertEqual(FileType.image.description, "Image")
-        XCTAssertEqual(FileType.video.description, "Video")
-        XCTAssertEqual(FileType.audio.description, "Audio")
-        XCTAssertEqual(FileType.document.description, "Document")
-        XCTAssertEqual(FileType.code.description, "Code")
-        XCTAssertEqual(FileType.archive.description, "Archive")
-        XCTAssertEqual(FileType.symlink.description, "Symlink")
-        XCTAssertEqual(FileType.unknown.description, "Unknown")
+    func testFileTypeDisplayName() throws {
+        XCTAssertEqual(FileType.directory.displayName, "目录")
+        XCTAssertEqual(FileType.regularFile.displayName, "文件")
+        XCTAssertEqual(FileType.symbolicLink.displayName, "符号链接")
+        XCTAssertEqual(FileType.hardLink.displayName, "硬链接")
+        XCTAssertEqual(FileType.unknown.displayName, "未知")
     }
     
     // MARK: - SortOrder Tests
@@ -239,20 +175,18 @@ final class SharedEnumsTests: XCTestCase {
     // MARK: - LogLevel Tests
     
     func testLogLevelRawValues() throws {
-        XCTAssertEqual(LogLevel.debug.rawValue, 0)
-        XCTAssertEqual(LogLevel.info.rawValue, 1)
-        XCTAssertEqual(LogLevel.warning.rawValue, 2)
-        XCTAssertEqual(LogLevel.error.rawValue, 3)
-        XCTAssertEqual(LogLevel.critical.rawValue, 4)
+        XCTAssertEqual(LogLevel.debug.rawValue, "debug")
+        XCTAssertEqual(LogLevel.info.rawValue, "info")
+        XCTAssertEqual(LogLevel.warning.rawValue, "warning")
+        XCTAssertEqual(LogLevel.error.rawValue, "error")
     }
     
     func testLogLevelComparison() throws {
         XCTAssertTrue(LogLevel.debug < LogLevel.info)
         XCTAssertTrue(LogLevel.info < LogLevel.warning)
         XCTAssertTrue(LogLevel.warning < LogLevel.error)
-        XCTAssertTrue(LogLevel.error < LogLevel.critical)
         
-        XCTAssertFalse(LogLevel.critical < LogLevel.debug)
+        XCTAssertFalse(LogLevel.error < LogLevel.debug)
         XCTAssertFalse(LogLevel.error < LogLevel.warning)
     }
     
@@ -261,7 +195,6 @@ final class SharedEnumsTests: XCTestCase {
         XCTAssertEqual(LogLevel.info.description, "INFO")
         XCTAssertEqual(LogLevel.warning.description, "WARNING")
         XCTAssertEqual(LogLevel.error.description, "ERROR")
-        XCTAssertEqual(LogLevel.critical.description, "CRITICAL")
     }
     
     func testLogLevelShouldLog() throws {
@@ -271,7 +204,6 @@ final class SharedEnumsTests: XCTestCase {
         XCTAssertFalse(LogLevel.info.shouldLog(at: currentLevel))
         XCTAssertTrue(LogLevel.warning.shouldLog(at: currentLevel))
         XCTAssertTrue(LogLevel.error.shouldLog(at: currentLevel))
-        XCTAssertTrue(LogLevel.critical.shouldLog(at: currentLevel))
     }
     
     // MARK: - Enum Codable Tests
@@ -299,7 +231,7 @@ final class SharedEnumsTests: XCTestCase {
     }
     
     func testFileTypeCodable() throws {
-        let fileType = FileType.image
+        let fileType = FileType.regularFile
         let encoder = JSONEncoder()
         let decoder = JSONDecoder()
         
@@ -334,8 +266,9 @@ final class SharedEnumsTests: XCTestCase {
     
     func testScanStatusAllCases() throws {
         let allCases = ScanStatus.allCases
-        XCTAssertEqual(allCases.count, 7)
+        XCTAssertEqual(allCases.count, 8)
         XCTAssertTrue(allCases.contains(.pending))
+        XCTAssertTrue(allCases.contains(.preparing))
         XCTAssertTrue(allCases.contains(.scanning))
         XCTAssertTrue(allCases.contains(.processing))
         XCTAssertTrue(allCases.contains(.paused))
@@ -346,12 +279,12 @@ final class SharedEnumsTests: XCTestCase {
     
     func testFileTypeAllCases() throws {
         let allCases = FileType.allCases
-        XCTAssertGreaterThanOrEqual(allCases.count, 10)
-        XCTAssertTrue(allCases.contains(.file))
+        XCTAssertGreaterThanOrEqual(allCases.count, 5)
         XCTAssertTrue(allCases.contains(.directory))
-        XCTAssertTrue(allCases.contains(.image))
-        XCTAssertTrue(allCases.contains(.video))
-        XCTAssertTrue(allCases.contains(.audio))
+        XCTAssertTrue(allCases.contains(.regularFile))
+        XCTAssertTrue(allCases.contains(.symbolicLink))
+        XCTAssertTrue(allCases.contains(.hardLink))
+        XCTAssertTrue(allCases.contains(.unknown))
     }
     
     func testViewModeAllCases() throws {

@@ -161,47 +161,6 @@ public struct ErrorCodes {
     public static let configurationError = 9003
 }
 
-/// 日志级别
-public enum LogLevel: String, CaseIterable, Comparable {
-    case verbose = "verbose"
-    case debug = "debug"
-    case info = "info"
-    case warning = "warning"
-    case error = "error"
-    case fatal = "fatal"
-    
-    public static func < (lhs: LogLevel, rhs: LogLevel) -> Bool {
-        let order: [LogLevel] = [.verbose, .debug, .info, .warning, .error, .fatal]
-        guard let lhsIndex = order.firstIndex(of: lhs),
-              let rhsIndex = order.firstIndex(of: rhs) else {
-            return false
-        }
-        return lhsIndex < rhsIndex
-    }
-    
-    public var displayName: String {
-        switch self {
-        case .verbose: return "详细"
-        case .debug: return "调试"
-        case .info: return "信息"
-        case .warning: return "警告"
-        case .error: return "错误"
-        case .fatal: return "致命"
-        }
-    }
-    
-    public var emoji: String {
-        switch self {
-        case .verbose: return "💬"
-        case .debug: return "🐛"
-        case .info: return "ℹ️"
-        case .warning: return "⚠️"
-        case .error: return "❌"
-        case .fatal: return "💀"
-        }
-    }
-}
-
 /// 性能阈值
 public struct PerformanceThresholds {
     /// UI响应时间阈值（毫秒）
@@ -226,4 +185,69 @@ public struct PerformanceThresholds {
     /// 文件大小阈值
     public static let largeFileThreshold: Int64 = 100 * 1024 * 1024 // 100MB
     public static let hugeFileThreshold: Int64 = 1024 * 1024 * 1024 // 1GB
+}
+
+/// 支持的文件类型
+public struct SupportedFileTypes {
+    /// 支持的图片类型
+    public static let supportedImageTypes: Set<String> = [
+        "jpg", "jpeg", "png", "gif", "bmp", "tiff", "svg", "webp", "ico", "heic"
+    ]
+    
+    /// 支持的视频类型
+    public static let supportedVideoTypes: Set<String> = [
+        "mp4", "mov", "avi", "mkv", "wmv", "flv", "webm", "m4v", "3gp", "mpg"
+    ]
+    
+    /// 支持的音频类型
+    public static let supportedAudioTypes: Set<String> = [
+        "mp3", "wav", "flac", "aac", "ogg", "wma", "m4a", "opus", "aiff", "au"
+    ]
+    
+    /// 支持的文档类型
+    public static let supportedDocumentTypes: Set<String> = [
+        "pdf", "doc", "docx", "txt", "rtf", "pages", "odt", "tex", "md", "html"
+    ]
+}
+
+/// 默认颜色配置
+public struct DefaultColors {
+    /// 默认文件颜色
+    public static let defaultFileColor = NSColor.systemBlue
+    
+    /// 默认目录颜色
+    public static let defaultDirectoryColor = NSColor.systemOrange
+    
+    /// 高亮颜色
+    public static let highlightColor = NSColor.selectedControlColor
+    
+    /// 选择颜色
+    public static let selectionColor = NSColor.controlAccentColor
+    
+    /// 文件类型颜色数组
+    public static let fileTypeColors: [NSColor] = [
+        .systemRed, .systemOrange, .systemYellow, .systemGreen,
+        .systemBlue, .systemPurple, .systemPink, .systemBrown
+    ]
+}
+
+/// 网络配置
+public struct NetworkConfig {
+    /// 网络超时时间（秒）
+    public static let networkTimeout: TimeInterval = 30.0
+    
+    /// 最大重试次数
+    public static let maxRetryCount = 3
+}
+
+/// 日志配置
+public struct LogConfig {
+    /// 默认日志级别
+    public static let defaultLogLevel = LogLevel.info
+    
+    /// 最大日志文件大小（字节）
+    public static let maxLogFileSize: Int64 = 10 * 1024 * 1024 // 10MB
+    
+    /// 最大日志文件数量
+    public static let maxLogFiles = 5
 }

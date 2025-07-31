@@ -377,3 +377,173 @@ public class LRUCache<Key: Hashable, Value> {
         return tailNode
     }
 }
+
+// MARK: - 扩展工具方法
+
+/// 共享工具类
+public struct SharedUtilities {
+    
+    /// 格式化文件大小（带精度控制）
+    public static func formatFileSize(_ bytes: Int64, precision: Int = 1) -> String {
+        if bytes < 0 { return "0 bytes" }
+        if bytes == 0 { return "0 bytes" }
+        if bytes == 1 { return "1 byte" }
+        
+        let units = ["bytes", "KB", "MB", "GB", "TB", "PB", "EB"]
+        var size = Double(bytes)
+        var unitIndex = 0
+        
+        while size >= 1024 && unitIndex < units.count - 1 {
+            size /= 1024
+            unitIndex += 1
+        }
+        
+        if unitIndex == 0 {
+            return "\(Int(size)) \(units[unitIndex])"
+        } else {
+            let formatter = Foundation.NumberFormatter()
+            formatter.minimumFractionDigits = 0
+            formatter.maximumFractionDigits = precision
+            let formattedSize = formatter.string(from: NSNumber(value: size)) ?? "\(size)"
+            return "\(formattedSize) \(units[unitIndex])"
+        }
+    }
+    
+    /// 验证路径是否有效
+    public static func isValidPath(_ path: String) -> Bool {
+        guard !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+        
+        // 检查是否包含非法字符
+        let invalidChars = CharacterSet(charactersIn: "\0")
+        return path.rangeOfCharacter(from: invalidChars) == nil
+    }
+    
+    /// 路径标准化
+    public static func normalizePath(_ path: String) -> String {
+        let nsPath = NSString(string: path)
+        return nsPath.standardizingPath
+    }
+    
+    /// 获取父路径
+    public static func getParentPath(_ path: String) -> String {
+        let nsPath = NSString(string: path)
+        return nsPath.deletingLastPathComponent
+    }
+    
+    /// 格式化时间戳
+    public static func formatTimestamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .medium
+        return formatter.string(from: date)
+    }
+    
+    /// 格式化时间戳（带格式控制）
+    public static func formatTimestamp(_ date: Date, format: String) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = format
+        return formatter.string(from: date)
+    }
+    
+    /// 格式化时长
+    public static func formatDuration(_ seconds: TimeInterval) -> String {
+        let totalSeconds = Int(seconds)
+        
+        if totalSeconds < 60 {
+            return "\(totalSeconds)s"
+        } else if totalSeconds < 3600 {
+            let minutes = totalSeconds / 60
+            let remainingSeconds = totalSeconds % 60
+            return "\(minutes)m \(remainingSeconds)s"
+        } else if totalSeconds < 86400 {
+            let hours = totalSeconds / 3600
+            let minutes = (totalSeconds % 3600) / 60
+            let remainingSeconds = totalSeconds % 60
+            return "\(hours)h \(minutes)m \(remainingSeconds)s"
+        } else {
+            let days = totalSeconds / 86400
+            let hours = (totalSeconds % 86400) / 3600
+            let minutes = (totalSeconds % 3600) / 60
+            let remainingSeconds = totalSeconds % 60
+            return "\(days)d \(hours)h \(minutes)m \(remainingSeconds)s"
+        }
+    }
+    
+    /// 获取文件扩展名
+    public static func getFileExtension(_ filename: String) -> String {
+        let nsString = NSString(string: filename)
+        let ext = nsString.pathExtension
+        return ext.isEmpty ? "" : ext.lowercased()
+    }
+    
+    /// 判断是否为图片文件
+    public static func isImageFile(_ filename: String) -> Bool {
+        let ext = getFileExtension(filename)
+        return SupportedFileTypes.supportedImageTypes.contains(ext)
+    }
+    
+    /// 判断是否为视频文件
+    public static func isVideoFile(_ filename: String) -> Bool {
+        let ext = getFileExtension(filename)
+        return SupportedFileTypes.supportedVideoTypes.contains(ext)
+    }
+    
+    /// 判断是否为音频文件
+    public static func isAudioFile(_ filename: String) -> Bool {
+        let ext = getFileExtension(filename)
+        return SupportedFileTypes.supportedAudioTypes.contains(ext)
+    }
+    
+    /// 为路径生成颜色
+    public static func generateColorForPath(_ path: String) -> NSColor {
+        let hash = path.hashValue
+        let colorIndex = abs(hash) % DefaultColors.fileTypeColors.count
+        return DefaultColors.fileTypeColors[colorIndex]
+    }
+    
+    /// 为大小生成颜色
+    public static func generateColorForSize(_ size: Int64) -> NSColor {
+        let normalizedSize = min(max(Double(size) / (1024 * 1024), 0), 1000) // 0-1000MB范围
+        let hue = (1.0 - normalizedSize / 1000.0) * 0.6 // 从红色到绿色
+        return NSColor(hue: hue, saturation: 0.8, brightness: 0.9, alpha: 1.0)
+    }
+    
+    /// 计算数据哈希
+    public static func calculateHash(_ data: Data) -> String {
+        var hash = SHA256()
+        hash.update(data: data)
+        let digest = hash.finalize()
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+    
+    /// 计算文件哈希
+    public static func calculateFileHash(_ filePath: String) -> String? {
+        guard let data = FileManager.default.contents(atPath: filePath) else {
+            return nil
+        }
+        return calculateHash(data)
+    }
+}
+
+// MARK: - SHA256 简单实现（用于测试）
+private struct SHA256 {
+    private var data = Data()
+    
+    mutating func update(data: Data) {
+        self.data.append(data)
+    }
+    
+    func finalize() -> [UInt8] {
+        // 简化的哈希实现，实际项目中应使用CryptoKit
+        let hash = data.withUnsafeBytes { bytes in
+            var result: [UInt8] = Array(repeating: 0, count: 32)
+            for (index, byte) in bytes.enumerated() {
+                result[index % 32] ^= byte
+            }
+            return result
+        }
+        return hash
+    }
+}
