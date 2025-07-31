@@ -60,141 +60,141 @@ let package = Package(
         .executableTarget(
             name: "DiskSpaceAnalyzer",
             dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer", "ScanEngine", "DirectoryTreeView", "TreeMapVisualization", "InteractionFeedback", "SessionManager", "UserInterface"],
-            path: "Sources/App"
+            path: "sources/App"
         ),
         
         // 基础模块 - 无依赖
         .target(
             name: "Common",
             dependencies: [],
-            path: "Sources/Common"
+            path: "sources/Common"
         ),
         
         // 数据模型模块 - 依赖Common
         .target(
             name: "DataModel",
             dependencies: ["Common"],
-            path: "Sources/DataModel"
+            path: "sources/DataModel"
         ),
         
         // 坐标系统模块 - 依赖Common
         .target(
             name: "CoordinateSystem",
             dependencies: ["Common"],
-            path: "Sources/CoordinateSystem"
+            path: "sources/CoordinateSystem"
         ),
         
         // 性能优化模块 - 依赖Common
         .target(
             name: "PerformanceOptimizer",
             dependencies: ["Common"],
-            path: "Sources/PerformanceOptimizer"
+            path: "sources/PerformanceOptimizer"
         ),
         
         // ScanEngine模块 - 文件系统扫描引擎
         .target(
             name: "ScanEngine",
             dependencies: ["Common", "DataModel", "PerformanceOptimizer"],
-            path: "Sources/ScanEngine"
+            path: "sources/ScanEngine"
         ),
         
         // DirectoryTreeView模块 - 智能目录树显示
         .target(
             name: "DirectoryTreeView",
             dependencies: ["Common", "DataModel", "PerformanceOptimizer"],
-            path: "Sources/DirectoryTreeView"
+            path: "sources/DirectoryTreeView"
         ),
         
         // TreeMapVisualization模块 - TreeMap可视化
         .target(
             name: "TreeMapVisualization",
             dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer"],
-            path: "Sources/TreeMapVisualization"
+            path: "sources/TreeMapVisualization"
         ),
         
         // InteractionFeedback模块 - 交互反馈系统
         .target(
             name: "InteractionFeedback",
             dependencies: ["Common", "CoordinateSystem", "DirectoryTreeView", "TreeMapVisualization", "PerformanceOptimizer"],
-            path: "Sources/InteractionFeedback"
+            path: "sources/InteractionFeedback"
         ),
         
         // SessionManager模块 - 会话管理系统
         .target(
             name: "SessionManager",
             dependencies: ["Common", "DataModel", "PerformanceOptimizer", "ScanEngine"],
-            path: "Sources/SessionManager"
+            path: "sources/SessionManager"
         ),
         
         // UserInterface模块 - 用户界面集成
         .target(
             name: "UserInterface",
             dependencies: ["Common", "DataModel", "DirectoryTreeView", "TreeMapVisualization", "InteractionFeedback", "SessionManager"],
-            path: "Sources/UserInterface"
+            path: "sources/UserInterface"
         ),
         
         // 测试目标
         .testTarget(
             name: "CommonTests",
             dependencies: ["Common"],
-            path: "Tests/CommonTests"
+            path: "tests/CommonTests"
         ),
         .testTarget(
             name: "DataModelTests",
             dependencies: ["DataModel", "Common"],
-            path: "Tests/DataModelTests"
+            path: "tests/DataModelTests"
         ),
         .testTarget(
             name: "CoordinateSystemTests",
             dependencies: ["CoordinateSystem", "Common"],
-            path: "Tests/CoordinateSystemTests"
+            path: "tests/CoordinateSystemTests"
         ),
         .testTarget(
             name: "PerformanceOptimizerTests",
             dependencies: ["PerformanceOptimizer", "Common"],
-            path: "Tests/PerformanceOptimizerTests"
+            path: "tests/PerformanceOptimizerTests"
         ),
         
         // ScanEngine模块测试
         .testTarget(
             name: "ScanEngineTests",
             dependencies: ["ScanEngine", "Common", "DataModel", "PerformanceOptimizer"],
-            path: "Tests/ScanEngineTests"
+            path: "tests/ScanEngineTests"
         ),
         
         // DirectoryTreeView模块测试
         .testTarget(
             name: "DirectoryTreeViewTests",
             dependencies: ["DirectoryTreeView", "Common", "DataModel", "PerformanceOptimizer"],
-            path: "Tests/DirectoryTreeViewTests"
+            path: "tests/DirectoryTreeViewTests"
         ),
         
         // TreeMapVisualization模块测试
         .testTarget(
             name: "TreeMapVisualizationTests",
             dependencies: ["TreeMapVisualization", "Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer"],
-            path: "Tests/TreeMapVisualizationTests"
+            path: "tests/TreeMapVisualizationTests"
         ),
         
         // InteractionFeedback模块测试
         .testTarget(
             name: "InteractionFeedbackTests",
             dependencies: ["InteractionFeedback", "Common", "CoordinateSystem", "DirectoryTreeView", "TreeMapVisualization", "PerformanceOptimizer"],
-            path: "Tests/InteractionFeedbackTests"
+            path: "tests/InteractionFeedbackTests"
         ),
         
         // SessionManager模块测试
         .testTarget(
             name: "SessionManagerTests",
             dependencies: ["SessionManager", "Common", "DataModel", "PerformanceOptimizer", "ScanEngine"],
-            path: "Tests/SessionManagerTests"
+            path: "tests/SessionManagerTests"
         ),
         
         // UserInterface模块测试
         .testTarget(
             name: "UserInterfaceTests",
             dependencies: ["UserInterface", "Common", "DataModel", "DirectoryTreeView", "TreeMapVisualization", "InteractionFeedback", "SessionManager"],
-            path: "Tests/UserInterfaceTests"
+            path: "tests/UserInterfaceTests"
         )
     ]
 )

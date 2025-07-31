@@ -1,380 +1,335 @@
 #!/bin/bash
 
-# DiskSpaceAnalyzer Build Script
-# 支持重复构建和生成可执行文件的完整构建脚本
+# DiskSpaceAnalyzer 构建脚本
+# 用于编译生成可执行的GUI程序
 
-set -e  # 遇到错误立即退出
+set -e  # 遇到错误时退出
 
-# =============================================================================
-# 配置变量
-# =============================================================================
-
-PROJECT_NAME="DiskSpaceAnalyzer"
-SCHEME_NAME="DiskSpaceAnalyzer"
-WORKSPACE_NAME="${PROJECT_NAME}.xcworkspace"
-PROJECT_FILE="${PROJECT_NAME}.xcodeproj"
-
-# 构建配置
-BUILD_CONFIG="Release"
-ARCHIVE_PATH="build/archives"
-EXPORT_PATH="build/exports"
-APP_PATH="build/app"
-DMG_PATH="build/dmg"
-
-# 版本信息
-VERSION=$(grep -A1 "CFBundleShortVersionString" Sources/App/Info.plist | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "1.0.0")
-BUILD_NUMBER=$(date +%Y%m%d%H%M%S)
-
-# 颜色输出
+# 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# =============================================================================
-# 工具函数
-# =============================================================================
+# 项目配置
+PROJECT_NAME="DiskSpaceAnalyzer"
+BUNDLE_ID="com.diskspaceanalyzer.app"
+VERSION="1.0.0"
+BUILD_NUMBER="1"
 
-log_info() {
+# 路径配置
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+BUILD_DIR="$PROJECT_ROOT/build"
+DERIVED_DATA_DIR="$BUILD_DIR/DerivedData"
+ARCHIVE_DIR="$BUILD_DIR/Archive"
+EXPORT_DIR="$BUILD_DIR/Export"
+
+# 函数：打印带颜色的消息
+print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
-log_success() {
+print_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
-log_warning() {
+print_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
-log_error() {
+print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-print_header() {
-    echo "============================================================================="
-    echo -e "${BLUE}$1${NC}"
-    echo "============================================================================="
+# 函数：显示帮助信息
+show_help() {
+    echo "DiskSpaceAnalyzer 构建脚本"
+    echo ""
+    echo "用法: $0 [选项]"
+    echo ""
+    echo "选项:"
+    echo "  -h, --help          显示此帮助信息"
+    echo "  -c, --clean         清理构建目录"
+    echo "  -d, --debug         构建Debug版本"
+    echo "  -r, --release       构建Release版本"
+    echo "  -a, --archive       创建Archive"
+    echo "  -p, --package       打包为.app应用程序"
+    echo "  -t, --test          运行测试"
+    echo "  --all               执行完整构建流程（清理+测试+Release+打包）"
+    echo ""
+    echo "示例:"
+    echo "  $0 --debug          # 构建Debug版本"
+    echo "  $0 --release        # 构建Release版本"
+    echo "  $0 --all            # 完整构建流程"
+    echo "  $0 --clean          # 清理构建目录"
 }
 
-check_requirements() {
-    log_info "检查构建环境..."
+# 函数：清理构建目录
+clean_build() {
+    print_info "清理构建目录..."
     
-    # 检查 Xcode
-    if ! command -v xcodebuild &> /dev/null; then
-        log_error "xcodebuild 未找到，请安装 Xcode"
-        exit 1
-    fi
-    
-    # 检查 Swift
-    if ! command -v swift &> /dev/null; then
-        log_error "Swift 编译器未找到"
-        exit 1
-    fi
-    
-    # 检查项目文件
-    if [[ ! -f "$PROJECT_FILE/project.pbxproj" ]]; then
-        log_error "项目文件 $PROJECT_FILE 未找到"
-        exit 1
-    fi
-    
-    log_success "构建环境检查通过"
-}
-
-clean_build_directory() {
-    log_info "清理构建目录..."
-    
-    if [[ -d "build" ]]; then
-        rm -rf build
-        log_info "已删除旧的构建目录"
-    fi
-    
-    # 创建构建目录结构
-    mkdir -p "$ARCHIVE_PATH"
-    mkdir -p "$EXPORT_PATH"
-    mkdir -p "$APP_PATH"
-    mkdir -p "$DMG_PATH"
-    
-    log_success "构建目录已准备完成"
-}
-
-update_version_info() {
-    log_info "更新版本信息..."
-    
-    # 更新 Info.plist 中的构建号
-    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" Sources/App/Info.plist
-    
-    log_info "版本: $VERSION, 构建号: $BUILD_NUMBER"
-    log_success "版本信息更新完成"
-}
-
-# =============================================================================
-# 构建函数
-# =============================================================================
-
-build_project() {
-    print_header "开始构建项目"
-    
-    log_info "执行 xcodebuild archive..."
-    
-    xcodebuild archive \
-        -project "$PROJECT_FILE" \
-        -scheme "$SCHEME_NAME" \
-        -configuration "$BUILD_CONFIG" \
-        -archivePath "$ARCHIVE_PATH/$PROJECT_NAME.xcarchive" \
-        -destination "generic/platform=macOS" \
-        SKIP_INSTALL=NO \
-        BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
-        CODE_SIGN_IDENTITY="" \
-        CODE_SIGNING_REQUIRED=NO \
-        CODE_SIGNING_ALLOWED=NO
-    
-    if [[ $? -eq 0 ]]; then
-        log_success "项目构建完成"
+    if [ -d "$BUILD_DIR" ]; then
+        rm -rf "$BUILD_DIR"
+        print_success "构建目录已清理"
     else
-        log_error "项目构建失败"
+        print_info "构建目录不存在，跳过清理"
+    fi
+    
+    # 清理Swift Package Manager缓存
+    cd "$PROJECT_ROOT"
+    swift package clean
+    print_success "Swift Package Manager缓存已清理"
+}
+
+# 函数：创建构建目录
+create_build_dirs() {
+    print_info "创建构建目录..."
+    mkdir -p "$BUILD_DIR"
+    mkdir -p "$DERIVED_DATA_DIR"
+    mkdir -p "$ARCHIVE_DIR"
+    mkdir -p "$EXPORT_DIR"
+    print_success "构建目录创建完成"
+}
+
+# 函数：运行测试
+run_tests() {
+    print_info "运行测试..."
+    cd "$PROJECT_ROOT"
+    
+    swift test --parallel
+    
+    if [ $? -eq 0 ]; then
+        print_success "所有测试通过"
+    else
+        print_error "测试失败"
         exit 1
     fi
 }
 
-export_app() {
-    print_header "导出应用程序"
+# 函数：构建Debug版本
+build_debug() {
+    print_info "构建Debug版本..."
+    cd "$PROJECT_ROOT"
     
-    log_info "创建导出配置文件..."
+    swift build --configuration debug
     
-    # 创建导出配置 plist
-    cat > build/ExportOptions.plist << EOF
+    if [ $? -eq 0 ]; then
+        print_success "Debug版本构建成功"
+        
+        # 复制可执行文件到构建目录
+        DEBUG_EXECUTABLE="$PROJECT_ROOT/.build/debug/$PROJECT_NAME"
+        if [ -f "$DEBUG_EXECUTABLE" ]; then
+            cp "$DEBUG_EXECUTABLE" "$BUILD_DIR/${PROJECT_NAME}_debug"
+            print_success "Debug可执行文件已复制到: $BUILD_DIR/${PROJECT_NAME}_debug"
+        fi
+    else
+        print_error "Debug版本构建失败"
+        exit 1
+    fi
+}
+
+# 函数：构建Release版本
+build_release() {
+    print_info "构建Release版本..."
+    cd "$PROJECT_ROOT"
+    
+    swift build --configuration release
+    
+    if [ $? -eq 0 ]; then
+        print_success "Release版本构建成功"
+        
+        # 复制可执行文件到构建目录
+        RELEASE_EXECUTABLE="$PROJECT_ROOT/.build/release/$PROJECT_NAME"
+        if [ -f "$RELEASE_EXECUTABLE" ]; then
+            cp "$RELEASE_EXECUTABLE" "$BUILD_DIR/${PROJECT_NAME}_release"
+            print_success "Release可执行文件已复制到: $BUILD_DIR/${PROJECT_NAME}_release"
+        fi
+    else
+        print_error "Release版本构建失败"
+        exit 1
+    fi
+}
+
+# 函数：创建macOS应用程序包
+create_app_bundle() {
+    print_info "创建macOS应用程序包..."
+    
+    local APP_BUNDLE="$EXPORT_DIR/$PROJECT_NAME.app"
+    local CONTENTS_DIR="$APP_BUNDLE/Contents"
+    local MACOS_DIR="$CONTENTS_DIR/MacOS"
+    local RESOURCES_DIR="$CONTENTS_DIR/Resources"
+    
+    # 创建应用程序包结构
+    mkdir -p "$MACOS_DIR"
+    mkdir -p "$RESOURCES_DIR"
+    
+    # 复制可执行文件
+    local RELEASE_EXECUTABLE="$PROJECT_ROOT/.build/release/$PROJECT_NAME"
+    if [ -f "$RELEASE_EXECUTABLE" ]; then
+        cp "$RELEASE_EXECUTABLE" "$MACOS_DIR/$PROJECT_NAME"
+        chmod +x "$MACOS_DIR/$PROJECT_NAME"
+        print_success "可执行文件已复制到应用程序包"
+    else
+        print_error "找不到Release可执行文件，请先构建Release版本"
+        exit 1
+    fi
+    
+    # 创建Info.plist
+    create_info_plist "$CONTENTS_DIR/Info.plist"
+    
+    # 复制资源文件（如果有的话）
+    if [ -d "$PROJECT_ROOT/Resources" ]; then
+        cp -R "$PROJECT_ROOT/Resources/"* "$RESOURCES_DIR/"
+        print_info "资源文件已复制"
+    fi
+    
+    # 创建应用程序图标（如果有的话）
+    if [ -f "$PROJECT_ROOT/Resources/AppIcon.icns" ]; then
+        cp "$PROJECT_ROOT/Resources/AppIcon.icns" "$RESOURCES_DIR/"
+        print_info "应用程序图标已复制"
+    fi
+    
+    print_success "macOS应用程序包创建完成: $APP_BUNDLE"
+}
+
+# 函数：创建Info.plist文件
+create_info_plist() {
+    local PLIST_PATH="$1"
+    
+    cat > "$PLIST_PATH" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>method</key>
-    <string>mac-application</string>
-    <key>destination</key>
-    <string>export</string>
-    <key>signingStyle</key>
-    <string>automatic</string>
-    <key>stripSwiftSymbols</key>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>$PROJECT_NAME</string>
+    <key>CFBundleIdentifier</key>
+    <string>$BUNDLE_ID</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$PROJECT_NAME</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$VERSION</string>
+    <key>CFBundleVersion</key>
+    <string>$BUILD_NUMBER</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2024 DiskSpaceAnalyzer. All rights reserved.</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
-    <key>thinning</key>
-    <string>&lt;none&gt;</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSRequiresAquaSystemAppearance</key>
+    <false/>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.utilities</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>This app needs access to scan and analyze disk space usage in your documents.</string>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>This app needs access to scan and analyze disk space usage on your desktop.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>This app needs access to scan and analyze disk space usage in your downloads.</string>
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>This app needs access to scan and analyze disk space usage on external drives.</string>
 </dict>
 </plist>
 EOF
     
-    log_info "导出应用程序..."
-    
-    xcodebuild -exportArchive \
-        -archivePath "$ARCHIVE_PATH/$PROJECT_NAME.xcarchive" \
-        -exportPath "$EXPORT_PATH" \
-        -exportOptionsPlist build/ExportOptions.plist
-    
-    if [[ $? -eq 0 ]]; then
-        # 复制 .app 文件到指定目录
-        if [[ -d "$EXPORT_PATH/$PROJECT_NAME.app" ]]; then
-            cp -R "$EXPORT_PATH/$PROJECT_NAME.app" "$APP_PATH/"
-            log_success "应用程序导出完成: $APP_PATH/$PROJECT_NAME.app"
-        else
-            log_error "导出的应用程序未找到"
-            exit 1
-        fi
-    else
-        log_error "应用程序导出失败"
-        exit 1
-    fi
+    print_success "Info.plist文件已创建"
 }
 
-create_dmg() {
-    print_header "创建 DMG 安装包"
-    
-    log_info "准备 DMG 内容..."
-    
-    DMG_TEMP_DIR="build/dmg_temp"
-    mkdir -p "$DMG_TEMP_DIR"
-    
-    # 复制应用程序到临时目录
-    cp -R "$APP_PATH/$PROJECT_NAME.app" "$DMG_TEMP_DIR/"
-    
-    # 创建 Applications 链接
-    ln -s /Applications "$DMG_TEMP_DIR/Applications"
-    
-    # 创建 DMG
-    DMG_NAME="${PROJECT_NAME}-${VERSION}-${BUILD_NUMBER}.dmg"
-    
-    log_info "创建 DMG 文件: $DMG_NAME"
-    
-    hdiutil create -volname "$PROJECT_NAME" \
-        -srcfolder "$DMG_TEMP_DIR" \
-        -ov -format UDZO \
-        "$DMG_PATH/$DMG_NAME"
-    
-    if [[ $? -eq 0 ]]; then
-        # 清理临时目录
-        rm -rf "$DMG_TEMP_DIR"
-        log_success "DMG 创建完成: $DMG_PATH/$DMG_NAME"
-    else
-        log_error "DMG 创建失败"
-        exit 1
-    fi
-}
-
-run_tests() {
-    print_header "运行单元测试"
-    
-    log_info "执行单元测试..."
-    
-    xcodebuild test \
-        -project "$PROJECT_FILE" \
-        -scheme "$SCHEME_NAME" \
-        -configuration Debug \
-        -destination "platform=macOS"
-    
-    if [[ $? -eq 0 ]]; then
-        log_success "所有测试通过"
-    else
-        log_warning "部分测试失败，但继续构建过程"
-    fi
-}
-
-generate_build_info() {
-    print_header "生成构建信息"
-    
-    BUILD_INFO_FILE="build/build_info.txt"
-    
-    cat > "$BUILD_INFO_FILE" << EOF
-DiskSpaceAnalyzer 构建信息
-========================
-
-项目名称: $PROJECT_NAME
-版本号: $VERSION
-构建号: $BUILD_NUMBER
-构建配置: $BUILD_CONFIG
-构建时间: $(date)
-构建主机: $(hostname)
-Xcode 版本: $(xcodebuild -version | head -n 1)
-Swift 版本: $(swift --version | head -n 1)
-
-构建产物:
-- 应用程序: $APP_PATH/$PROJECT_NAME.app
-- DMG 安装包: $DMG_PATH/${PROJECT_NAME}-${VERSION}-${BUILD_NUMBER}.dmg
-
-文件大小:
-- 应用程序: $(du -h "$APP_PATH/$PROJECT_NAME.app" | cut -f1)
-- DMG 文件: $(du -h "$DMG_PATH"/*.dmg | cut -f1)
-
-EOF
-    
-    log_success "构建信息已保存到: $BUILD_INFO_FILE"
-}
-
-show_summary() {
-    print_header "构建完成摘要"
-    
-    echo "🎉 构建成功完成！"
+# 函数：显示构建信息
+show_build_info() {
+    print_info "构建信息:"
+    echo "  项目名称: $PROJECT_NAME"
+    echo "  Bundle ID: $BUNDLE_ID"
+    echo "  版本: $VERSION"
+    echo "  构建号: $BUILD_NUMBER"
+    echo "  项目根目录: $PROJECT_ROOT"
+    echo "  构建目录: $BUILD_DIR"
     echo ""
-    echo "📦 构建产物:"
-    echo "   应用程序: $APP_PATH/$PROJECT_NAME.app"
-    echo "   DMG 安装包: $DMG_PATH/${PROJECT_NAME}-${VERSION}-${BUILD_NUMBER}.dmg"
-    echo ""
-    echo "📊 文件信息:"
-    if [[ -d "$APP_PATH/$PROJECT_NAME.app" ]]; then
-        echo "   应用程序大小: $(du -h "$APP_PATH/$PROJECT_NAME.app" | cut -f1)"
-    fi
-    if [[ -f "$DMG_PATH"/*.dmg ]]; then
-        echo "   DMG 文件大小: $(du -h "$DMG_PATH"/*.dmg | cut -f1)"
-    fi
-    echo ""
-    echo "🚀 可以通过以下方式运行应用程序:"
-    echo "   open $APP_PATH/$PROJECT_NAME.app"
-    echo ""
-    echo "💿 可以通过以下方式安装 DMG:"
-    echo "   open $DMG_PATH/${PROJECT_NAME}-${VERSION}-${BUILD_NUMBER}.dmg"
 }
 
-# =============================================================================
+# 函数：完整构建流程
+full_build() {
+    print_info "开始完整构建流程..."
+    
+    clean_build
+    create_build_dirs
+    run_tests
+    build_release
+    create_app_bundle
+    
+    print_success "完整构建流程完成！"
+    print_info "应用程序位置: $EXPORT_DIR/$PROJECT_NAME.app"
+}
+
 # 主函数
-# =============================================================================
-
 main() {
-    print_header "DiskSpaceAnalyzer 构建脚本"
+    show_build_info
     
     # 解析命令行参数
-    SKIP_TESTS=false
-    SKIP_DMG=false
-    CLEAN_ONLY=false
-    
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --skip-tests)
-                SKIP_TESTS=true
-                shift
+            -h|--help)
+                show_help
+                exit 0
                 ;;
-            --skip-dmg)
-                SKIP_DMG=true
-                shift
+            -c|--clean)
+                clean_build
+                exit 0
                 ;;
-            --clean-only)
-                CLEAN_ONLY=true
-                shift
+            -d|--debug)
+                create_build_dirs
+                build_debug
+                exit 0
                 ;;
-            --help|-h)
-                echo "用法: $0 [选项]"
-                echo ""
-                echo "选项:"
-                echo "  --skip-tests    跳过单元测试"
-                echo "  --skip-dmg      跳过 DMG 创建"
-                echo "  --clean-only    仅清理构建目录"
-                echo "  --help, -h      显示此帮助信息"
+            -r|--release)
+                create_build_dirs
+                build_release
+                exit 0
+                ;;
+            -a|--archive)
+                create_build_dirs
+                build_release
+                create_app_bundle
+                exit 0
+                ;;
+            -p|--package)
+                create_build_dirs
+                create_app_bundle
+                exit 0
+                ;;
+            -t|--test)
+                run_tests
+                exit 0
+                ;;
+            --all)
+                full_build
                 exit 0
                 ;;
             *)
-                log_error "未知选项: $1"
+                print_error "未知选项: $1"
+                show_help
                 exit 1
                 ;;
         esac
+        shift
     done
     
-    # 检查构建环境
-    check_requirements
-    
-    # 清理构建目录
-    clean_build_directory
-    
-    if [[ "$CLEAN_ONLY" == true ]]; then
-        log_success "构建目录清理完成"
-        exit 0
-    fi
-    
-    # 更新版本信息
-    update_version_info
-    
-    # 运行测试（如果未跳过）
-    if [[ "$SKIP_TESTS" == false ]]; then
-        run_tests
-    else
-        log_warning "跳过单元测试"
-    fi
-    
-    # 构建项目
-    build_project
-    
-    # 导出应用程序
-    export_app
-    
-    # 创建 DMG（如果未跳过）
-    if [[ "$SKIP_DMG" == false ]]; then
-        create_dmg
-    else
-        log_warning "跳过 DMG 创建"
-    fi
-    
-    # 生成构建信息
-    generate_build_info
-    
-    # 显示构建摘要
-    show_summary
+    # 如果没有提供参数，显示帮助信息
+    show_help
 }
 
-# 执行主函数
+# 运行主函数
 main "$@"

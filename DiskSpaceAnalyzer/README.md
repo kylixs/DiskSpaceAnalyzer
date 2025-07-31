@@ -6,13 +6,13 @@ A native macOS application for analyzing disk space usage with interactive TreeM
 
 ```
 DiskSpaceAnalyzer/
-├── Sources/                    # 源代码目录
-├── Tests/                      # 测试代码目录
-├── Resources/                  # 资源文件目录
-├── Scripts/                    # 构建和工具脚本
-├── Documentation/              # 项目文档
-├── Configuration/              # 配置文件
-├── Tools/                      # 开发工具
+├── sources/                    # 源代码目录
+├── tests/                      # 测试代码目录
+├── resources/                  # 资源文件目录
+├── scripts/                    # 构建和工具脚本
+├── docs/                       # 项目文档
+├── config/                     # 配置文件
+├── tools/                      # 开发工具
 ├── Package.swift              # Swift Package Manager配置
 ├── DiskSpaceAnalyzer.xcodeproj # Xcode项目文件
 └── README.md                  # 项目说明
