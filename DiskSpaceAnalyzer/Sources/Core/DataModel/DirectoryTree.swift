@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 /// 目录树结构管理类
 /// 支持高效的增删改查操作和多种遍历方式
@@ -7,63 +8,172 @@ public class DirectoryTree: ObservableObject {
     // MARK: - Properties
     
     /// 根节点
-    @Published public private(set) var rootNode: FileNode?
+    @Published public private(set) var root: FileNode?
     
-    /// 路径到节点的映射索引（O(1)查找）
+    /// 路径到节点的映射索引（提供O(1)查找）
     private var pathIndex: [String: FileNode] = [:]
     
     /// ID到节点的映射索引
     private var idIndex: [UUID: FileNode] = [:]
     
-    /// 读写锁（保证线程安全）
+    /// 总节点数
+    @Published public private(set) var nodeCount: Int = 0
+    
+    /// 总文件数
+    @Published public private(set) var fileCount: Int = 0
+    
+    /// 总目录数
+    @Published public private(set) var directoryCount: Int = 0
+    
+    /// 总大小
+    @Published public private(set) var totalSize: Int64 = 0
+    
+    /// 最大深度
+    @Published public private(set) var maxDepth: Int = 0
+    
+    /// 线程安全访问队列
     private let accessQueue = DispatchQueue(label: "DirectoryTree.access", attributes: .concurrent)
+    
+    /// 更新队列（用于批量操作）
+    private let updateQueue = DispatchQueue(label: "DirectoryTree.update")
+    
+    /// 是否正在批量更新
+    private var isBatchUpdating = false
+    
+    /// 批量更新的变更集合
+    private var batchChanges: Set<String> = []
     
     // MARK: - Initialization
     
-    public init() {}
-    
-    public init(rootNode: FileNode) {
-        setRootNode(rootNode)
+    public init() {
+        // 空初始化
     }
     
-    // MARK: - Public Methods
+    /// 使用根节点初始化
+    /// - Parameter root: 根节点
+    public init(root: FileNode) {
+        setRoot(root)
+    }
+    
+    // MARK: - Root Management
     
     /// 设置根节点
-    /// - Parameter node: 根节点
-    public func setRootNode(_ node: FileNode) {
-        accessQueue.async(flags: .barrier) {
-            DispatchQueue.main.async {
-                self.rootNode = node
-                self.rebuildIndex()
-            }
+    /// - Parameter node: 新的根节点
+    public func setRoot(_ node: FileNode) {
+        accessQueue.async(flags: .barrier) { [weak self] in
+            self?.root = node
+            self?.rebuildIndex()
+            self?.updateStatistics()
         }
     }
     
-    /// 添加节点到指定父节点
+    /// 清除所有数据
+    public func clear() {
+        accessQueue.async(flags: .barrier) { [weak self] in
+            self?.root = nil
+            self?.pathIndex.removeAll()
+            self?.idIndex.removeAll()
+            self?.nodeCount = 0
+            self?.fileCount = 0
+            self?.directoryCount = 0
+            self?.totalSize = 0
+            self?.maxDepth = 0
+        }
+    }
+    
+    // MARK: - Node Operations
+    
+    /// 添加节点
     /// - Parameters:
     ///   - node: 要添加的节点
-    ///   - parent: 父节点
-    public func addNode(_ node: FileNode, to parent: FileNode) {
-        accessQueue.async(flags: .barrier) {
-            parent.addChild(node)
-            self.updateIndex(for: node)
+    ///   - parent: 父节点，如果为nil则作为根节点
+    /// - Returns: 是否添加成功
+    @discardableResult
+    public func addNode(_ node: FileNode, to parent: FileNode? = nil) -> Bool {
+        return accessQueue.sync(flags: .barrier) { [weak self] in
+            guard let self = self else { return false }
+            
+            // 如果没有指定父节点且没有根节点，则设为根节点
+            if parent == nil && self.root == nil {
+                self.root = node
+                self.addToIndex(node)
+                self.updateStatisticsAfterAdd(node)
+                return true
+            }
+            
+            // 如果指定了父节点，添加为子节点
+            if let parentNode = parent {
+                parentNode.addChild(node)
+                self.addToIndex(node)
+                self.updateStatisticsAfterAdd(node)
+                return true
+            }
+            
+            return false
         }
     }
     
     /// 移除节点
     /// - Parameter node: 要移除的节点
-    public func removeNode(_ node: FileNode) {
-        accessQueue.async(flags: .barrier) {
+    /// - Returns: 是否移除成功
+    @discardableResult
+    public func removeNode(_ node: FileNode) -> Bool {
+        return accessQueue.sync(flags: .barrier) { [weak self] in
+            guard let self = self else { return false }
+            
+            // 如果是根节点
+            if node.id == self.root?.id {
+                self.root = nil
+                self.removeFromIndex(node)
+                self.updateStatisticsAfterRemove(node)
+                return true
+            }
+            
+            // 如果有父节点，从父节点移除
             if let parent = node.parent {
                 parent.removeChild(node)
+                self.removeFromIndex(node)
+                self.updateStatisticsAfterRemove(node)
+                return true
             }
-            self.removeFromIndex(node)
+            
+            return false
         }
     }
     
+    /// 移动节点
+    /// - Parameters:
+    ///   - node: 要移动的节点
+    ///   - newParent: 新的父节点
+    /// - Returns: 是否移动成功
+    @discardableResult
+    public func moveNode(_ node: FileNode, to newParent: FileNode) -> Bool {
+        return accessQueue.sync(flags: .barrier) { [weak self] in
+            guard let self = self else { return false }
+            
+            // 检查是否会形成循环
+            if self.wouldCreateCycle(moving: node, to: newParent) {
+                return false
+            }
+            
+            // 从原父节点移除
+            node.parent?.removeChild(node)
+            
+            // 添加到新父节点
+            newParent.addChild(node)
+            
+            // 更新索引
+            self.updatePathIndex(for: node)
+            
+            return true
+        }
+    }
+    
+    // MARK: - Search Operations
+    
     /// 根据路径查找节点
-    /// - Parameter path: 文件路径
-    /// - Returns: 找到的节点或nil
+    /// - Parameter path: 节点路径
+    /// - Returns: 找到的节点，如果不存在返回nil
     public func findNode(at path: String) -> FileNode? {
         return accessQueue.sync {
             return pathIndex[path]
@@ -72,112 +182,190 @@ public class DirectoryTree: ObservableObject {
     
     /// 根据ID查找节点
     /// - Parameter id: 节点ID
-    /// - Returns: 找到的节点或nil
+    /// - Returns: 找到的节点，如果不存在返回nil
     public func findNode(by id: UUID) -> FileNode? {
         return accessQueue.sync {
             return idIndex[id]
         }
     }
     
-    /// 获取所有节点（按大小排序）
-    /// - Parameter limit: 限制数量
-    /// - Returns: 排序后的节点数组
-    public func getNodesBySize(limit: Int = Int.max) -> [FileNode] {
+    /// 根据名称查找节点
+    /// - Parameter name: 节点名称
+    /// - Returns: 所有匹配的节点
+    public func findNodes(named name: String) -> [FileNode] {
         return accessQueue.sync {
-            let allNodes = getAllNodes()
-            let sortedNodes = allNodes.sorted { $0.totalSize > $1.totalSize }
-            return Array(sortedNodes.prefix(limit))
+            return pathIndex.values.filter { $0.name == name }
         }
     }
     
-    /// 获取指定类型的节点
-    /// - Parameter type: 文件类型
-    /// - Returns: 符合条件的节点数组
-    public func getNodes(ofType type: AppFileType) -> [FileNode] {
+    /// 根据条件查找节点
+    /// - Parameter predicate: 查找条件
+    /// - Returns: 所有满足条件的节点
+    public func findNodes(where predicate: (FileNode) -> Bool) -> [FileNode] {
         return accessQueue.sync {
-            let allNodes = getAllNodes()
-            return allNodes.filter { node in
-                switch type {
-                case .directory:
-                    return node.isDirectory
-                case .regularFile:
-                    return !node.isDirectory
-                case .symbolicLink:
-                    // 这里可以根据需要扩展符号链接检测
-                    return false
-                case .other:
-                    return false
-                }
-            }
+            return pathIndex.values.filter(predicate)
         }
     }
+    
+    /// 查找最大的文件
+    /// - Parameter count: 返回的文件数量
+    /// - Returns: 按大小排序的文件列表
+    public func findLargestFiles(count: Int = 10) -> [FileNode] {
+        return accessQueue.sync {
+            return pathIndex.values
+                .filter { !$0.isDirectory }
+                .sorted { $0.size > $1.size }
+                .prefix(count)
+                .map { $0 }
+        }
+    }
+    
+    /// 查找最大的目录
+    /// - Parameter count: 返回的目录数量
+    /// - Returns: 按总大小排序的目录列表
+    public func findLargestDirectories(count: Int = 10) -> [FileNode] {
+        return accessQueue.sync {
+            return pathIndex.values
+                .filter { $0.isDirectory }
+                .sorted { $0.totalSize > $1.totalSize }
+                .prefix(count)
+                .map { $0 }
+        }
+    }
+    
+    // MARK: - Traversal Operations
     
     /// 深度优先遍历
     /// - Parameter visitor: 访问者函数
-    public func traverseDepthFirst(_ visitor: (FileNode) -> Bool) {
-        guard let root = rootNode else { return }
-        traverseDepthFirstRecursive(root, visitor: visitor)
+    public func depthFirstTraversal(_ visitor: (FileNode) -> Void) {
+        accessQueue.sync {
+            root?.depthFirstTraversal(visitor)
+        }
     }
     
     /// 广度优先遍历
     /// - Parameter visitor: 访问者函数
-    public func traverseBreadthFirst(_ visitor: (FileNode) -> Bool) {
-        guard let root = rootNode else { return }
-        
-        var queue: [FileNode] = [root]
-        
-        while !queue.isEmpty {
-            let node = queue.removeFirst()
-            
-            if !visitor(node) {
-                break
-            }
-            
-            queue.append(contentsOf: node.children)
+    public func breadthFirstTraversal(_ visitor: (FileNode) -> Void) {
+        accessQueue.sync {
+            root?.breadthFirstTraversal(visitor)
         }
     }
     
-    /// 获取树的统计信息
-    /// - Returns: 树统计信息
-    public func getStatistics() -> TreeStatistics {
-        guard let root = rootNode else {
-            return TreeStatistics()
-        }
-        
-        return accessQueue.sync {
-            var totalFiles = 0
-            var totalDirectories = 0
-            var totalSize: Int64 = 0
-            var maxDepth = 0
+    /// 按层级遍历
+    /// - Parameter visitor: 访问者函数，参数为(节点, 层级)
+    public func levelOrderTraversal(_ visitor: (FileNode, Int) -> Void) {
+        accessQueue.sync {
+            guard let root = self.root else { return }
             
-            traverseDepthFirstRecursive(root) { node in
-                if node.isDirectory {
-                    totalDirectories += 1
-                } else {
-                    totalFiles += 1
+            var queue: [(FileNode, Int)] = [(root, 0)]
+            
+            while !queue.isEmpty {
+                let (current, level) = queue.removeFirst()
+                visitor(current, level)
+                
+                for child in current.children {
+                    queue.append((child, level + 1))
                 }
-                totalSize += node.size
-                maxDepth = max(maxDepth, node.depth)
-                return true
+            }
+        }
+    }
+    
+    // MARK: - Batch Operations
+    
+    /// 开始批量更新
+    public func beginBatchUpdate() {
+        updateQueue.sync {
+            isBatchUpdating = true
+            batchChanges.removeAll()
+        }
+    }
+    
+    /// 结束批量更新
+    public func endBatchUpdate() {
+        updateQueue.sync {
+            isBatchUpdating = false
+            
+            // 处理批量变更
+            if !batchChanges.isEmpty {
+                accessQueue.async(flags: .barrier) { [weak self] in
+                    self?.processBatchChanges()
+                }
             }
             
+            batchChanges.removeAll()
+        }
+    }
+    
+    /// 批量添加节点
+    /// - Parameter nodes: 要添加的节点数组，格式为[(节点, 父节点路径)]
+    public func batchAddNodes(_ nodes: [(FileNode, String?)]) {
+        beginBatchUpdate()
+        
+        for (node, parentPath) in nodes {
+            let parent = parentPath != nil ? findNode(at: parentPath!) : nil
+            addNode(node, to: parent)
+        }
+        
+        endBatchUpdate()
+    }
+    
+    /// 批量移除节点
+    /// - Parameter nodes: 要移除的节点数组
+    public func batchRemoveNodes(_ nodes: [FileNode]) {
+        beginBatchUpdate()
+        
+        for node in nodes {
+            removeNode(node)
+        }
+        
+        endBatchUpdate()
+    }
+    
+    // MARK: - Statistics and Analysis
+    
+    /// 获取目录树统计信息
+    /// - Returns: 统计信息结构
+    public func getStatistics() -> TreeStatistics {
+        return accessQueue.sync {
             return TreeStatistics(
-                totalFiles: totalFiles,
-                totalDirectories: totalDirectories,
+                nodeCount: nodeCount,
+                fileCount: fileCount,
+                directoryCount: directoryCount,
                 totalSize: totalSize,
-                maxDepth: maxDepth
+                maxDepth: maxDepth,
+                averageChildrenPerDirectory: directoryCount > 0 ? Double(nodeCount - directoryCount) / Double(directoryCount) : 0
             )
         }
     }
     
-    /// 清空树
-    public func clear() {
-        accessQueue.async(flags: .barrier) {
-            DispatchQueue.main.async {
-                self.rootNode = nil
-                self.pathIndex.removeAll()
-                self.idIndex.removeAll()
+    /// 分析目录大小分布
+    /// - Returns: 大小分布信息
+    public func analyzeSizeDistribution() -> SizeDistribution {
+        return accessQueue.sync {
+            let directories = pathIndex.values.filter { $0.isDirectory }
+            let sizes = directories.map { $0.totalSize }
+            
+            guard !sizes.isEmpty else {
+                return SizeDistribution(min: 0, max: 0, average: 0, median: 0, standardDeviation: 0)
             }
+            
+            let sortedSizes = sizes.sorted()
+            let min = sortedSizes.first!
+            let max = sortedSizes.last!
+            let average = sizes.reduce(0, +) / Int64(sizes.count)
+            let median = sortedSizes[sortedSizes.count / 2]
+            
+            // 计算标准差
+            let variance = sizes.map { pow(Double($0 - average), 2) }.reduce(0, +) / Double(sizes.count)
+            let standardDeviation = sqrt(variance)
+            
+            return SizeDistribution(
+                min: min,
+                max: max,
+                average: average,
+                median: median,
+                standardDeviation: standardDeviation
+            )
         }
     }
     
@@ -188,24 +376,22 @@ public class DirectoryTree: ObservableObject {
         pathIndex.removeAll()
         idIndex.removeAll()
         
-        guard let root = rootNode else { return }
+        guard let root = self.root else { return }
         
-        traverseDepthFirstRecursive(root) { node in
-            pathIndex[node.path] = node
-            idIndex[node.id] = node
-            return true
+        root.depthFirstTraversal { [weak self] node in
+            self?.addToIndex(node)
         }
     }
     
-    /// 更新索引
-    /// - Parameter node: 要更新的节点
-    private func updateIndex(for node: FileNode) {
+    /// 添加节点到索引
+    /// - Parameter node: 要添加的节点
+    private func addToIndex(_ node: FileNode) {
         pathIndex[node.path] = node
         idIndex[node.id] = node
         
-        // 递归更新子节点
+        // 递归添加子节点
         for child in node.children {
-            updateIndex(for: child)
+            addToIndex(child)
         }
     }
     
@@ -221,94 +407,201 @@ public class DirectoryTree: ObservableObject {
         }
     }
     
-    /// 深度优先遍历（递归实现）
-    /// - Parameters:
-    ///   - node: 当前节点
-    ///   - visitor: 访问者函数
-    private func traverseDepthFirstRecursive(_ node: FileNode, visitor: (FileNode) -> Bool) {
-        if !visitor(node) {
-            return
+    /// 更新路径索引
+    /// - Parameter node: 要更新的节点
+    private func updatePathIndex(for node: FileNode) {
+        // 移除旧路径
+        let oldPaths = pathIndex.compactMap { (path, indexedNode) in
+            indexedNode.id == node.id ? path : nil
         }
         
-        for child in node.children {
-            traverseDepthFirstRecursive(child, visitor: visitor)
+        for oldPath in oldPaths {
+            pathIndex.removeValue(forKey: oldPath)
+        }
+        
+        // 添加新路径
+        node.depthFirstTraversal { [weak self] node in
+            self?.pathIndex[node.path] = node
         }
     }
     
-    /// 获取所有节点
-    /// - Returns: 所有节点数组
-    private func getAllNodes() -> [FileNode] {
-        guard let root = rootNode else { return [] }
+    /// 检查移动操作是否会创建循环
+    /// - Parameters:
+    ///   - node: 要移动的节点
+    ///   - newParent: 新的父节点
+    /// - Returns: 是否会创建循环
+    private func wouldCreateCycle(moving node: FileNode, to newParent: FileNode) -> Bool {
+        var current: FileNode? = newParent
         
-        var nodes: [FileNode] = []
-        traverseDepthFirstRecursive(root) { node in
-            nodes.append(node)
-            return true
+        while current != nil {
+            if current?.id == node.id {
+                return true
+            }
+            current = current?.parent
         }
-        return nodes
+        
+        return false
+    }
+    
+    /// 更新统计信息
+    private func updateStatistics() {
+        guard let root = self.root else {
+            nodeCount = 0
+            fileCount = 0
+            directoryCount = 0
+            totalSize = 0
+            maxDepth = 0
+            return
+        }
+        
+        var tempNodeCount = 0
+        var tempFileCount = 0
+        var tempDirectoryCount = 0
+        var tempTotalSize: Int64 = 0
+        var tempMaxDepth = 0
+        
+        root.depthFirstTraversal { node in
+            tempNodeCount += 1
+            
+            if node.isDirectory {
+                tempDirectoryCount += 1
+            } else {
+                tempFileCount += 1
+                tempTotalSize += node.size
+            }
+            
+            tempMaxDepth = max(tempMaxDepth, node.depth)
+        }
+        
+        nodeCount = tempNodeCount
+        fileCount = tempFileCount
+        directoryCount = tempDirectoryCount
+        totalSize = tempTotalSize
+        maxDepth = tempMaxDepth
+    }
+    
+    /// 添加节点后更新统计信息
+    /// - Parameter node: 添加的节点
+    private func updateStatisticsAfterAdd(_ node: FileNode) {
+        var addedNodes = 0
+        var addedFiles = 0
+        var addedDirectories = 0
+        var addedSize: Int64 = 0
+        
+        node.depthFirstTraversal { node in
+            addedNodes += 1
+            
+            if node.isDirectory {
+                addedDirectories += 1
+            } else {
+                addedFiles += 1
+                addedSize += node.size
+            }
+            
+            maxDepth = max(maxDepth, node.depth)
+        }
+        
+        nodeCount += addedNodes
+        fileCount += addedFiles
+        directoryCount += addedDirectories
+        totalSize += addedSize
+    }
+    
+    /// 移除节点后更新统计信息
+    /// - Parameter node: 移除的节点
+    private func updateStatisticsAfterRemove(_ node: FileNode) {
+        var removedNodes = 0
+        var removedFiles = 0
+        var removedDirectories = 0
+        var removedSize: Int64 = 0
+        
+        node.depthFirstTraversal { node in
+            removedNodes += 1
+            
+            if node.isDirectory {
+                removedDirectories += 1
+            } else {
+                removedFiles += 1
+                removedSize += node.size
+            }
+        }
+        
+        nodeCount -= removedNodes
+        fileCount -= removedFiles
+        directoryCount -= removedDirectories
+        totalSize -= removedSize
+        
+        // 重新计算最大深度
+        if nodeCount > 0 {
+            updateStatistics()
+        } else {
+            maxDepth = 0
+        }
+    }
+    
+    /// 处理批量变更
+    private func processBatchChanges() {
+        // 重建索引和统计信息
+        rebuildIndex()
+        updateStatistics()
     }
 }
 
 // MARK: - Supporting Types
 
-/// 树统计信息
+/// 目录树统计信息
 public struct TreeStatistics {
-    public let totalFiles: Int
-    public let totalDirectories: Int
+    public let nodeCount: Int
+    public let fileCount: Int
+    public let directoryCount: Int
     public let totalSize: Int64
     public let maxDepth: Int
+    public let averageChildrenPerDirectory: Double
     
-    public init(
-        totalFiles: Int = 0,
-        totalDirectories: Int = 0,
-        totalSize: Int64 = 0,
-        maxDepth: Int = 0
-    ) {
-        self.totalFiles = totalFiles
-        self.totalDirectories = totalDirectories
+    public init(nodeCount: Int, fileCount: Int, directoryCount: Int, totalSize: Int64, maxDepth: Int, averageChildrenPerDirectory: Double) {
+        self.nodeCount = nodeCount
+        self.fileCount = fileCount
+        self.directoryCount = directoryCount
         self.totalSize = totalSize
         self.maxDepth = maxDepth
-    }
-    
-    /// 格式化的总大小
-    public var formattedTotalSize: String {
-        return ByteCountFormatter.string(fromByteCount: totalSize, countStyle: .file)
+        self.averageChildrenPerDirectory = averageChildrenPerDirectory
     }
 }
 
-// MARK: - Extensions
+/// 大小分布信息
+public struct SizeDistribution {
+    public let min: Int64
+    public let max: Int64
+    public let average: Int64
+    public let median: Int64
+    public let standardDeviation: Double
+    
+    public init(min: Int64, max: Int64, average: Int64, median: Int64, standardDeviation: Double) {
+        self.min = min
+        self.max = max
+        self.average = average
+        self.median = median
+        self.standardDeviation = standardDeviation
+    }
+}
+
+// MARK: - Thread Safety Extensions
 
 extension DirectoryTree {
-    
-    /// 批量操作
-    /// - Parameter operations: 操作闭包
-    public func performBatchOperations(_ operations: @escaping () -> Void) {
-        accessQueue.async(flags: .barrier) {
-            operations()
-            DispatchQueue.main.async {
-                self.objectWillChange.send()
-            }
-        }
-    }
-    
-    /// 搜索节点
-    /// - Parameters:
-    ///   - predicate: 搜索条件
-    ///   - limit: 结果限制
-    /// - Returns: 搜索结果
-    public func searchNodes(where predicate: (FileNode) -> Bool, limit: Int = Int.max) -> [FileNode] {
+    /// 线程安全地读取数据
+    /// - Parameter block: 读取操作
+    /// - Returns: 读取结果
+    public func safeRead<T>(_ block: (DirectoryTree) -> T) -> T {
         return accessQueue.sync {
-            let allNodes = getAllNodes()
-            let matchingNodes = allNodes.filter(predicate)
-            return Array(matchingNodes.prefix(limit))
+            return block(self)
         }
     }
     
-    /// 获取路径下的直接子节点
-    /// - Parameter path: 父路径
-    /// - Returns: 子节点数组
-    public func getChildren(at path: String) -> [FileNode] {
-        guard let parentNode = findNode(at: path) else { return [] }
-        return parentNode.children
+    /// 线程安全地写入数据
+    /// - Parameter block: 写入操作
+    public func safeWrite(_ block: (DirectoryTree) -> Void) {
+        accessQueue.async(flags: .barrier) {
+            block(self)
+        }
     }
 }

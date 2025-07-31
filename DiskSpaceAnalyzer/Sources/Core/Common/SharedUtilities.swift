@@ -293,7 +293,7 @@ public class ThreadSafeCounter {
 
 /// 缓存工具
 public class LRUCache<Key: Hashable, Value> {
-    private struct CacheNode {
+    private class CacheNode {
         let key: Key
         var value: Value
         var prev: CacheNode?
