@@ -38,6 +38,10 @@ let package = Package(
         .library(
             name: "TreeMapVisualization",
             targets: ["TreeMapVisualization"]
+        ),
+        .library(
+            name: "InteractionFeedback",
+            targets: ["InteractionFeedback"]
         )
     ],
     dependencies: [
@@ -47,7 +51,7 @@ let package = Package(
         // 可执行目标
         .executableTarget(
             name: "DiskSpaceAnalyzer",
-            dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer", "ScanEngine", "DirectoryTreeView", "TreeMapVisualization"],
+            dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer", "ScanEngine", "DirectoryTreeView", "TreeMapVisualization", "InteractionFeedback"],
             path: "Sources/App"
         ),
         
@@ -100,6 +104,13 @@ let package = Package(
             path: "Sources/TreeMapVisualization"
         ),
         
+        // InteractionFeedback模块 - 交互反馈系统
+        .target(
+            name: "InteractionFeedback",
+            dependencies: ["Common", "CoordinateSystem", "DirectoryTreeView", "TreeMapVisualization", "PerformanceOptimizer"],
+            path: "Sources/InteractionFeedback"
+        ),
+        
         // 测试目标
         .testTarget(
             name: "CommonTests",
@@ -141,6 +152,13 @@ let package = Package(
             name: "TreeMapVisualizationTests",
             dependencies: ["TreeMapVisualization", "Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer"],
             path: "Tests/TreeMapVisualizationTests"
+        ),
+        
+        // InteractionFeedback模块测试
+        .testTarget(
+            name: "InteractionFeedbackTests",
+            dependencies: ["InteractionFeedback", "Common", "CoordinateSystem", "DirectoryTreeView", "TreeMapVisualization", "PerformanceOptimizer"],
+            path: "Tests/InteractionFeedbackTests"
         )
     ]
 )
