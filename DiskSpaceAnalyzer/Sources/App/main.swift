@@ -4,32 +4,54 @@ import Common
 import DataModel
 import CoordinateSystem
 import PerformanceOptimizer
+import ScanEngine
+import DirectoryTreeView
+import TreeMapVisualization
+import InteractionFeedback
+import SessionManager
+import UserInterface
 
 /// DiskSpaceAnalyzer 主程序入口点
 /// 
-/// 磁盘空间分析器 - 模块化架构演示
+/// 磁盘空间分析器 - 完整功能的macOS应用程序
 
 // MARK: - 应用程序委托
 
 class DiskSpaceAnalyzerAppDelegate: NSObject, NSApplicationDelegate {
     
-    /// 主窗口
-    private var mainWindow: NSWindow?
+    /// 用户界面管理器
+    private let userInterface = UserInterface.shared
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         print("🚀 DiskSpaceAnalyzer 启动成功！")
-        print("📦 已加载模块: Common, DataModel, CoordinateSystem, PerformanceOptimizer")
+        print("📦 已加载所有模块:")
+        print("   • Common - 共享工具和常量")
+        print("   • DataModel - 数据模型和持久化")
+        print("   • CoordinateSystem - 坐标系统和变换")
+        print("   • PerformanceOptimizer - 性能优化")
+        print("   • ScanEngine - 文件系统扫描引擎")
+        print("   • DirectoryTreeView - 目录树显示")
+        print("   • TreeMapVisualization - TreeMap可视化")
+        print("   • InteractionFeedback - 交互反馈系统")
+        print("   • SessionManager - 会话管理")
+        print("   • UserInterface - 用户界面集成")
         
-        // 创建主窗口
-        createMainWindow()
+        // 初始化所有模块
+        initializeModules()
         
-        print("✅ 模块化架构演示程序已启动")
+        // 启动用户界面
+        userInterface.launch()
+        
+        print("✅ 磁盘空间分析器已启动")
         print("🛠️ 当前版本: \(AppConstants.appVersion)")
         print("📊 应用名称: \(AppConstants.appDisplayName)")
     }
     
     func applicationWillTerminate(_ notification: Notification) {
         print("👋 DiskSpaceAnalyzer 即将退出")
+        
+        // 清理资源
+        // PerformanceOptimizer模块会自动清理
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -42,55 +64,20 @@ class DiskSpaceAnalyzerAppDelegate: NSObject, NSApplicationDelegate {
     
     // MARK: - 私有方法
     
-    private func createMainWindow() {
-        // 创建窗口
-        let windowRect = NSRect(
-            x: 0, 
-            y: 0, 
-            width: AppConstants.defaultWindowWidth, 
-            height: AppConstants.defaultWindowHeight
-        )
+    private func initializeModules() {
+        // 按依赖顺序初始化模块
+        CommonModule.initialize()
+        DataModelModule.initialize()
+        CoordinateSystemModule.initialize()
+        PerformanceOptimizerModule.initialize()
+        ScanEngineModule.initialize()
+        DirectoryTreeViewModule.initialize()
+        TreeMapVisualizationModule.initialize()
+        InteractionFeedbackModule.initialize()
+        SessionManagerModule.initialize()
+        UserInterfaceModule.initialize()
         
-        mainWindow = NSWindow(
-            contentRect: windowRect,
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-        
-        mainWindow?.title = AppConstants.appName
-        mainWindow?.center()
-        mainWindow?.makeKeyAndOrderFront(nil)
-        
-        // 创建简单的内容视图
-        let contentView = NSView(frame: windowRect)
-        contentView.wantsLayer = true
-        contentView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-        
-        // 添加标签显示模块信息
-        let label = NSTextField(labelWithString: """
-        DiskSpaceAnalyzer 模块化架构演示
-        
-        已加载的模块:
-        • Common - 共享工具和常量
-        • DataModel - 数据模型和持久化
-        • CoordinateSystem - 坐标系统和变换
-        • PerformanceOptimizer - 性能优化
-        
-        应用信息:
-        • 版本: \(AppConstants.appVersion)
-        • 最小窗口尺寸: \(Int(AppConstants.minWindowWidth)) x \(Int(AppConstants.minWindowHeight))
-        • 最大缓存大小: \(AppConstants.maxCacheSize) 项
-        
-        运行 'swift test' 来执行单元测试
-        """)
-        
-        label.frame = NSRect(x: 50, y: 50, width: windowRect.width - 100, height: windowRect.height - 100)
-        label.alignment = NSTextAlignment.left
-        label.font = NSFont.systemFont(ofSize: 14)
-        
-        contentView.addSubview(label)
-        mainWindow?.contentView = contentView
+        print("🎯 所有模块初始化完成")
     }
 }
 
@@ -108,8 +95,9 @@ func main() {
     app.setActivationPolicy(.regular)
     
     print("🎯 启动 DiskSpaceAnalyzer \(AppConstants.appVersion)")
-    print("🏗️ 架构: 模块化设计")
+    print("🏗️ 架构: 10个模块化组件")
     print("💻 平台: macOS 13.0+")
+    print("⚡ 技术栈: Swift 5.9+ | AppKit | Swift Concurrency")
     
     // 运行应用程序
     app.run()
