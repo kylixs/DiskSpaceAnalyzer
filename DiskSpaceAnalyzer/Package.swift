@@ -34,6 +34,10 @@ let package = Package(
         .library(
             name: "DirectoryTreeView",
             targets: ["DirectoryTreeView"]
+        ),
+        .library(
+            name: "TreeMapVisualization",
+            targets: ["TreeMapVisualization"]
         )
     ],
     dependencies: [
@@ -43,7 +47,7 @@ let package = Package(
         // 可执行目标
         .executableTarget(
             name: "DiskSpaceAnalyzer",
-            dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer", "ScanEngine", "DirectoryTreeView"],
+            dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer", "ScanEngine", "DirectoryTreeView", "TreeMapVisualization"],
             path: "Sources/App"
         ),
         
@@ -89,6 +93,13 @@ let package = Package(
             path: "Sources/DirectoryTreeView"
         ),
         
+        // TreeMapVisualization模块 - TreeMap可视化
+        .target(
+            name: "TreeMapVisualization",
+            dependencies: ["Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer"],
+            path: "Sources/TreeMapVisualization"
+        ),
+        
         // 测试目标
         .testTarget(
             name: "CommonTests",
@@ -123,6 +134,13 @@ let package = Package(
             name: "DirectoryTreeViewTests",
             dependencies: ["DirectoryTreeView", "Common", "DataModel", "PerformanceOptimizer"],
             path: "Tests/DirectoryTreeViewTests"
+        ),
+        
+        // TreeMapVisualization模块测试
+        .testTarget(
+            name: "TreeMapVisualizationTests",
+            dependencies: ["TreeMapVisualization", "Common", "DataModel", "CoordinateSystem", "PerformanceOptimizer"],
+            path: "Tests/TreeMapVisualizationTests"
         )
     ]
 )
