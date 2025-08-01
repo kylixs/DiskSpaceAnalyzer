@@ -2,82 +2,44 @@ import XCTest
 import AppKit
 @testable import InteractionFeedback
 @testable import Common
-@testable import CoordinateSystem
-@testable import DirectoryTreeView
-@testable import TreeMapVisualization
-@testable import PerformanceOptimizer
 
-final class InteractionFeedbackTests: XCTestCase {
+final class InteractionFeedbackTests: BaseTestCase {
     
     // MARK: - Test Properties
     
-    var interactionFeedback: InteractionFeedback!
-    var mouseHandler: MouseInteractionHandler!
-    var tooltipManager: TooltipManager!
-    var highlightRenderer: HighlightRenderer!
-    var contextMenuManager: ContextMenuManager!
-    var interactionCoordinator: InteractionCoordinator!
-    
+    var interactionManager: BasicInteractionManager!
     var testView: NSView!
-    var testTreeMapView: TreeMapView!
     
     // MARK: - Setup & Teardown
     
     override func setUpWithError() throws {
-        interactionFeedback = InteractionFeedback.shared
-        mouseHandler = MouseInteractionHandler.shared
-        tooltipManager = TooltipManager.shared
-        highlightRenderer = HighlightRenderer.shared
-        contextMenuManager = ContextMenuManager.shared
-        interactionCoordinator = InteractionCoordinator.shared
-        
         // 创建测试视图
-        testView = NSView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
-        testTreeMapView = TreeMapView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
+        testView = NSView(frame: CGRect(x: 0, y: 0, width: 400, height: 300))
+        testView.wantsLayer = true
         
-        // 设置视图
-        interactionFeedback.setTreeMapView(testTreeMapView)
+        // 初始化交互管理器
+        interactionManager = BasicInteractionManager.shared
+        interactionManager.resetState()
     }
     
     override func tearDownWithError() throws {
-        mouseHandler.resetState()
-        tooltipManager.hideTooltip()
-        highlightRenderer.removeHighlight()
-        
-        interactionFeedback = nil
-        mouseHandler = nil
-        tooltipManager = nil
-        highlightRenderer = nil
-        contextMenuManager = nil
-        interactionCoordinator = nil
+        interactionManager.resetState()
+        interactionManager = nil
         testView = nil
-        testTreeMapView = nil
     }
     
-    // MARK: - InteractionFeedback Tests
+    // MARK: - Module Initialization Tests
     
-    func testInteractionFeedbackInitialization() throws {
-        XCTAssertNotNil(interactionFeedback, "InteractionFeedback应该能够正确初始化")
-        XCTAssertNotNil(InteractionFeedback.shared, "InteractionFeedback.shared应该存在")
-        XCTAssertTrue(InteractionFeedback.shared === interactionFeedback, "应该是单例模式")
-    }
-    
-    func testSetTreeMapView() throws {
-        let treeMapView = TreeMapView(frame: NSRect(x: 0, y: 0, width: 200, height: 200))
+    func testModuleInitialization() throws {
+        // 测试模块信息
+        XCTAssertEqual(InteractionFeedbackModule.version, "1.0.0")
+        XCTAssertEqual(InteractionFeedbackModule.description, "交互反馈系统")
         
-        XCTAssertNoThrow(interactionFeedback.setTreeMapView(treeMapView), "设置TreeMap视图不应该抛出异常")
-    }
-    
-    func testGetCurrentState() throws {
-        let state = interactionFeedback.getCurrentState()
-        XCTAssertEqual(state, .idle, "初始状态应该是idle")
-    }
-    
-    func testResetState() throws {
-        XCTAssertNoThrow(interactionFeedback.resetState(), "重置状态不应该抛出异常")
+        // 测试初始化不会崩溃
+        XCTAssertNoThrow(InteractionFeedbackModule.initialize())
         
-        let state = interactionFeedback.getCurrentState()
-        XCTAssertEqual(state, .idle, "重置后状态应该是idle")
+        // 测试单例模式
+        XCTAssertTrue(BasicInteractionManager.shared === interactionManager)
     }
     
     // MARK: - InteractionState Tests
@@ -85,379 +47,303 @@ final class InteractionFeedbackTests: XCTestCase {
     func testInteractionStateEnum() throws {
         let states: [InteractionState] = [.idle, .hovering, .clicking, .dragging, .contextMenu]
         
-        XCTAssertEqual(states.count, 5, "应该有5种交互状态")
+        // 验证所有状态都存在
+        XCTAssertEqual(states.count, 5)
+        
+        // 测试状态比较
+        XCTAssertEqual(InteractionState.idle, InteractionState.idle)
+        XCTAssertNotEqual(InteractionState.idle, InteractionState.hovering)
     }
     
     // MARK: - InteractionEventType Tests
     
     func testInteractionEventTypeEnum() throws {
         let eventTypes: [InteractionEventType] = [
-            .mouseEnter, .mouseMove, .mouseExit, .leftClick, .doubleClick,
-            .rightClick, .dragStart, .dragMove, .dragEnd
+            .mouseEnter, .mouseMove, .mouseExit,
+            .leftClick, .doubleClick, .rightClick,
+            .dragStart, .dragMove, .dragEnd
         ]
         
-        XCTAssertEqual(eventTypes.count, 9, "应该有9种交互事件类型")
+        // 验证所有事件类型都存在
+        XCTAssertEqual(eventTypes.count, 9)
+        
+        // 测试事件类型比较
+        XCTAssertEqual(InteractionEventType.leftClick, InteractionEventType.leftClick)
+        XCTAssertNotEqual(InteractionEventType.leftClick, InteractionEventType.rightClick)
     }
     
     // MARK: - InteractionEvent Tests
     
-    func testInteractionEventInitialization() throws {
-        let location = CGPoint(x: 100, y: 200)
-        let event = InteractionEvent(type: .leftClick, location: location)
+    func testInteractionEventCreation() throws {
+        let timestamp = Date()
+        let location = CGPoint(x: 100, y: 100)
+        
+        let event = InteractionEvent(
+            type: .leftClick,
+            location: location,
+            timestamp: timestamp
+        )
         
         XCTAssertEqual(event.type, .leftClick)
-        XCTAssertEqual(event.location, location)
-        XCTAssertTrue(event.timestamp.timeIntervalSinceNow < 1.0, "时间戳应该是最近的")
-        XCTAssertEqual(event.modifierFlags, [])
+        XCTAssertEqual(event.location.x, 100)
+        XCTAssertEqual(event.location.y, 100)
+        XCTAssertEqual(event.timestamp, timestamp)
     }
     
-    func testInteractionEventWithModifiers() throws {
-        let location = CGPoint(x: 50, y: 75)
-        let modifiers: NSEvent.ModifierFlags = [.command, .shift]
-        let event = InteractionEvent(type: .rightClick, location: location, modifierFlags: modifiers)
-        
-        XCTAssertEqual(event.type, .rightClick)
-        XCTAssertEqual(event.location, location)
-        XCTAssertEqual(event.modifierFlags, modifiers)
+    // MARK: - BasicInteractionManager Tests
+    
+    func testBasicInteractionManagerInitialState() throws {
+        XCTAssertEqual(interactionManager.getCurrentState(), .idle)
+        XCTAssertNil(interactionManager.getLastEvent())
     }
     
-    // MARK: - MouseInteractionHandler Tests
-    
-    func testMouseInteractionHandlerInitialization() throws {
-        XCTAssertNotNil(mouseHandler, "MouseInteractionHandler应该能够正确初始化")
-        XCTAssertNotNil(MouseInteractionHandler.shared, "MouseInteractionHandler.shared应该存在")
-        XCTAssertTrue(MouseInteractionHandler.shared === mouseHandler, "应该是单例模式")
-    }
-    
-    func testMouseInteractionHandlerGetCurrentState() throws {
-        let state = mouseHandler.getCurrentState()
-        XCTAssertEqual(state, .idle, "初始状态应该是idle")
-    }
-    
-    func testMouseInteractionHandlerResetState() throws {
-        mouseHandler.resetState()
-        
-        let state = mouseHandler.getCurrentState()
-        XCTAssertEqual(state, .idle, "重置后状态应该是idle")
-    }
-    
-    func testMouseInteractionHandlerCallbacks() throws {
-        var eventReceived: InteractionEvent?
-        var stateReceived: InteractionState?
-        var oldStateReceived: InteractionState?
-        var newStateReceived: InteractionState?
-        
-        mouseHandler.onInteractionEvent = { event, state in
-            eventReceived = event
-            stateReceived = state
-        }
-        
-        mouseHandler.onStateChanged = { oldState, newState in
-            oldStateReceived = oldState
-            newStateReceived = newState
-        }
-        
-        // 创建模拟鼠标事件
-        let mouseEvent = NSEvent.mouseEvent(
-            with: .mouseMoved,
+    func testBasicInteractionManagerHandleMouseEnter() throws {
+        let event = InteractionEvent(
+            type: .mouseEnter,
             location: CGPoint(x: 100, y: 100),
-            modifierFlags: [],
-            timestamp: 0,
-            windowNumber: 0,
-            context: nil,
-            eventNumber: 0,
-            clickCount: 1,
-            pressure: 1.0
+            timestamp: Date()
         )
         
-        if let event = mouseEvent {
-            mouseHandler.handleMouseEvent(event, in: testView)
-        }
+        interactionManager.handleEvent(event)
         
-        // 验证回调设置
-        XCTAssertNotNil(mouseHandler.onInteractionEvent, "交互事件回调应该被设置")
-        XCTAssertNotNil(mouseHandler.onStateChanged, "状态变化回调应该被设置")
+        XCTAssertEqual(interactionManager.getCurrentState(), .hovering)
+        XCTAssertNotNil(interactionManager.getLastEvent())
+        XCTAssertEqual(interactionManager.getLastEvent()?.type, .mouseEnter)
     }
     
-    // MARK: - TooltipManager Tests
-    
-    func testTooltipManagerInitialization() throws {
-        XCTAssertNotNil(tooltipManager, "TooltipManager应该能够正确初始化")
-        XCTAssertNotNil(TooltipManager.shared, "TooltipManager.shared应该存在")
-        XCTAssertTrue(TooltipManager.shared === tooltipManager, "应该是单例模式")
-    }
-    
-    func testTooltipManagerShowHide() throws {
-        let location = CGPoint(x: 100, y: 100)
-        let text = "测试tooltip"
-        
-        XCTAssertNoThrow(tooltipManager.showTooltip(text, at: location, in: testView), "显示tooltip不应该抛出异常")
-        XCTAssertNoThrow(tooltipManager.hideTooltip(), "隐藏tooltip不应该抛出异常")
-    }
-    
-    func testTooltipManagerUpdatePosition() throws {
-        let location1 = CGPoint(x: 100, y: 100)
-        let location2 = CGPoint(x: 150, y: 150)
-        let text = "测试tooltip"
-        
-        tooltipManager.showTooltip(text, at: location1, in: testView)
-        
-        XCTAssertNoThrow(tooltipManager.updateTooltipPosition(location2, in: testView), "更新tooltip位置不应该抛出异常")
-        
-        tooltipManager.hideTooltip()
-    }
-    
-    // MARK: - HighlightRenderer Tests
-    
-    func testHighlightRendererInitialization() throws {
-        XCTAssertNotNil(highlightRenderer, "HighlightRenderer应该能够正确初始化")
-        XCTAssertNotNil(HighlightRenderer.shared, "HighlightRenderer.shared应该存在")
-        XCTAssertTrue(HighlightRenderer.shared === highlightRenderer, "应该是单例模式")
-    }
-    
-    func testHighlightRendererSetRemoveHighlight() throws {
-        // 创建测试矩形
-        let testNode = FileNode(name: "test", path: "/test", size: 1000, isDirectory: false)
-        let testRect = TreeMapRect(
-            node: testNode,
-            rect: CGRect(x: 10, y: 10, width: 100, height: 80),
-            color: NSColor.blue
+    func testBasicInteractionManagerHandleLeftClick() throws {
+        let event = InteractionEvent(
+            type: .leftClick,
+            location: CGPoint(x: 150, y: 150),
+            timestamp: Date()
         )
         
-        // 设置高亮
-        XCTAssertNoThrow(highlightRenderer.setHighlight(testRect, in: testView), "设置高亮不应该抛出异常")
+        interactionManager.handleEvent(event)
         
-        let currentHighlight = highlightRenderer.getCurrentHighlight()
-        XCTAssertNotNil(currentHighlight, "应该有当前高亮")
-        XCTAssertEqual(currentHighlight?.node.id, testNode.id, "高亮节点应该匹配")
-        
-        // 移除高亮
-        XCTAssertNoThrow(highlightRenderer.removeHighlight(), "移除高亮不应该抛出异常")
-        
-        let removedHighlight = highlightRenderer.getCurrentHighlight()
-        XCTAssertNil(removedHighlight, "高亮应该被移除")
+        XCTAssertEqual(interactionManager.getCurrentState(), .clicking)
+        XCTAssertEqual(interactionManager.getLastEvent()?.type, .leftClick)
     }
     
-    func testHighlightRendererSetNilHighlight() throws {
-        XCTAssertNoThrow(highlightRenderer.setHighlight(nil, in: testView), "设置nil高亮不应该抛出异常")
-        
-        let currentHighlight = highlightRenderer.getCurrentHighlight()
-        XCTAssertNil(currentHighlight, "nil高亮应该清除当前高亮")
-    }
-    
-    // MARK: - ContextMenuManager Tests
-    
-    func testContextMenuManagerInitialization() throws {
-        XCTAssertNotNil(contextMenuManager, "ContextMenuManager应该能够正确初始化")
-        XCTAssertNotNil(ContextMenuManager.shared, "ContextMenuManager.shared应该存在")
-        XCTAssertTrue(ContextMenuManager.shared === contextMenuManager, "应该是单例模式")
-    }
-    
-    func testContextMenuManagerCallbacks() throws {
-        var openInFinderCalled = false
-        var selectInTreeCalled = false
-        var copyPathCalled = false
-        var showInfoCalled = false
-        
-        contextMenuManager.onOpenInFinder = { _ in
-            openInFinderCalled = true
-        }
-        
-        contextMenuManager.onSelectInTree = { _ in
-            selectInTreeCalled = true
-        }
-        
-        contextMenuManager.onCopyPath = { _ in
-            copyPathCalled = true
-        }
-        
-        contextMenuManager.onShowInfo = { _ in
-            showInfoCalled = true
-        }
-        
-        // 验证回调设置
-        XCTAssertNotNil(contextMenuManager.onOpenInFinder, "onOpenInFinder回调应该被设置")
-        XCTAssertNotNil(contextMenuManager.onSelectInTree, "onSelectInTree回调应该被设置")
-        XCTAssertNotNil(contextMenuManager.onCopyPath, "onCopyPath回调应该被设置")
-        XCTAssertNotNil(contextMenuManager.onShowInfo, "onShowInfo回调应该被设置")
-    }
-    
-    // MARK: - InteractionCoordinator Tests
-    
-    func testInteractionCoordinatorInitialization() throws {
-        XCTAssertNotNil(interactionCoordinator, "InteractionCoordinator应该能够正确初始化")
-        XCTAssertNotNil(InteractionCoordinator.shared, "InteractionCoordinator.shared应该存在")
-        XCTAssertTrue(InteractionCoordinator.shared === interactionCoordinator, "应该是单例模式")
-    }
-    
-    func testInteractionCoordinatorSetViews() throws {
-        let treeMapView = TreeMapView(frame: NSRect(x: 0, y: 0, width: 200, height: 200))
-        let directoryTreeView = DirectoryTreeView.shared
-        
-        interactionCoordinator.treeMapView = treeMapView
-        interactionCoordinator.directoryTreeView = directoryTreeView
-        
-        XCTAssertTrue(interactionCoordinator.treeMapView === treeMapView, "TreeMapView应该被设置")
-        XCTAssertTrue(interactionCoordinator.directoryTreeView === directoryTreeView, "DirectoryTreeView应该被设置")
-    }
-    
-    // MARK: - Integration Tests
-    
-    func testMouseEventHandling() throws {
-        // 创建鼠标移动事件
-        let mouseMoveEvent = NSEvent.mouseEvent(
-            with: .mouseMoved,
+    func testBasicInteractionManagerHandleDragSequence() throws {
+        // 开始拖拽
+        let dragStartEvent = InteractionEvent(
+            type: .dragStart,
             location: CGPoint(x: 100, y: 100),
-            modifierFlags: [],
-            timestamp: 0,
-            windowNumber: 0,
-            context: nil,
-            eventNumber: 0,
-            clickCount: 1,
-            pressure: 1.0
+            timestamp: Date()
         )
         
-        if let event = mouseMoveEvent {
-            XCTAssertNoThrow(interactionFeedback.handleMouseEvent(event, in: testView), "处理鼠标事件不应该抛出异常")
-        }
-    }
-    
-    func testTooltipIntegration() throws {
-        let location = CGPoint(x: 100, y: 100)
-        let text = "集成测试tooltip"
+        interactionManager.handleEvent(dragStartEvent)
+        XCTAssertEqual(interactionManager.getCurrentState(), .dragging)
         
-        XCTAssertNoThrow(interactionFeedback.showTooltip(text, at: location, in: testView), "显示tooltip不应该抛出异常")
-        
-        // 等待一小段时间
-        let expectation = XCTestExpectation(description: "tooltip显示")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            expectation.fulfill()
-        }
-        wait(for: [expectation], timeout: 1.0)
-        
-        XCTAssertNoThrow(interactionFeedback.hideTooltip(), "隐藏tooltip不应该抛出异常")
-    }
-    
-    func testHighlightIntegration() throws {
-        // 创建测试矩形
-        let testNode = FileNode(name: "integration_test", path: "/test/integration", size: 2000, isDirectory: true)
-        let testRect = TreeMapRect(
-            node: testNode,
-            rect: CGRect(x: 20, y: 20, width: 120, height: 100),
-            color: NSColor.green
+        // 拖拽移动
+        let dragMoveEvent = InteractionEvent(
+            type: .dragMove,
+            location: CGPoint(x: 120, y: 120),
+            timestamp: Date()
         )
         
-        XCTAssertNoThrow(interactionFeedback.setHighlight(testRect, in: testView), "设置高亮不应该抛出异常")
+        interactionManager.handleEvent(dragMoveEvent)
+        XCTAssertEqual(interactionManager.getCurrentState(), .dragging)
         
-        // 验证高亮状态
-        let currentHighlight = highlightRenderer.getCurrentHighlight()
-        XCTAssertNotNil(currentHighlight, "应该有当前高亮")
-        XCTAssertEqual(currentHighlight?.node.id, testNode.id, "高亮节点应该匹配")
+        // 结束拖拽
+        let dragEndEvent = InteractionEvent(
+            type: .dragEnd,
+            location: CGPoint(x: 140, y: 140),
+            timestamp: Date()
+        )
         
-        // 清除高亮
-        XCTAssertNoThrow(interactionFeedback.setHighlight(nil, in: testView), "清除高亮不应该抛出异常")
+        interactionManager.handleEvent(dragEndEvent)
+        XCTAssertEqual(interactionManager.getCurrentState(), .idle)
     }
     
-    func testStateTransitions() throws {
-        // 初始状态
-        XCTAssertEqual(interactionFeedback.getCurrentState(), .idle, "初始状态应该是idle")
+    func testBasicInteractionManagerResetState() throws {
+        // 先设置一些状态
+        let event = InteractionEvent(
+            type: .leftClick,
+            location: CGPoint(x: 100, y: 100),
+            timestamp: Date()
+        )
+        
+        interactionManager.handleEvent(event)
+        XCTAssertEqual(interactionManager.getCurrentState(), .clicking)
+        XCTAssertNotNil(interactionManager.getLastEvent())
         
         // 重置状态
-        interactionFeedback.resetState()
-        XCTAssertEqual(interactionFeedback.getCurrentState(), .idle, "重置后状态应该是idle")
+        interactionManager.resetState()
+        
+        XCTAssertEqual(interactionManager.getCurrentState(), .idle)
+        XCTAssertNil(interactionManager.getLastEvent())
+    }
+    
+    // MARK: - State Transition Tests
+    
+    func testStateTransitionSequence() throws {
+        // 测试完整的状态转换序列
+        let events = [
+            InteractionEvent(type: .mouseEnter, location: CGPoint(x: 100, y: 100), timestamp: Date()),
+            InteractionEvent(type: .mouseMove, location: CGPoint(x: 110, y: 110), timestamp: Date()),
+            InteractionEvent(type: .leftClick, location: CGPoint(x: 110, y: 110), timestamp: Date()),
+            InteractionEvent(type: .dragStart, location: CGPoint(x: 110, y: 110), timestamp: Date()),
+            InteractionEvent(type: .dragMove, location: CGPoint(x: 120, y: 120), timestamp: Date()),
+            InteractionEvent(type: .dragEnd, location: CGPoint(x: 130, y: 130), timestamp: Date()),
+            InteractionEvent(type: .mouseExit, location: CGPoint(x: 140, y: 140), timestamp: Date())
+        ]
+        
+        let expectedStates: [InteractionState] = [
+            .hovering,    // mouseEnter
+            .hovering,    // mouseMove
+            .clicking,    // leftClick
+            .dragging,    // dragStart
+            .dragging,    // dragMove
+            .idle,        // dragEnd
+            .idle         // mouseExit
+        ]
+        
+        for (index, event) in events.enumerated() {
+            interactionManager.handleEvent(event)
+            XCTAssertEqual(interactionManager.getCurrentState(), expectedStates[index], 
+                          "状态转换失败，事件: \(event.type), 期望状态: \(expectedStates[index])")
+        }
     }
     
     // MARK: - Performance Tests
     
-    func testMouseEventHandlingPerformance() throws {
-        let mouseEvents = (0..<100).compactMap { i in
-            NSEvent.mouseEvent(
-                with: .mouseMoved,
+    func testInteractionEventCreationPerformance() throws {
+        measure {
+            for i in 0..<1000 {
+                let event = InteractionEvent(
+                    type: .mouseMove,
+                    location: CGPoint(x: i, y: i),
+                    timestamp: Date()
+                )
+                XCTAssertNotNil(event)
+            }
+        }
+    }
+    
+    func testInteractionManagerPerformance() throws {
+        let events = (0..<1000).map { i in
+            InteractionEvent(
+                type: i % 2 == 0 ? .mouseMove : .leftClick,
                 location: CGPoint(x: i, y: i),
-                modifierFlags: [],
-                timestamp: TimeInterval(i),
-                windowNumber: 0,
-                context: nil,
-                eventNumber: i,
-                clickCount: 1,
-                pressure: 1.0
+                timestamp: Date()
             )
         }
         
         measure {
-            for event in mouseEvents {
-                interactionFeedback.handleMouseEvent(event, in: testView)
+            for event in events {
+                interactionManager.handleEvent(event)
             }
         }
     }
     
-    func testTooltipPerformance() throws {
-        let locations = (0..<50).map { i in
-            CGPoint(x: i * 10, y: i * 10)
-        }
+    // MARK: - Edge Cases Tests
+    
+    func testInteractionEventWithExtremeValues() throws {
+        let extremeLocations = [
+            CGPoint(x: CGFloat.greatestFiniteMagnitude, y: CGFloat.greatestFiniteMagnitude),
+            CGPoint(x: -CGFloat.greatestFiniteMagnitude, y: -CGFloat.greatestFiniteMagnitude),
+            CGPoint(x: 0, y: 0)
+        ]
         
-        measure {
-            for (index, location) in locations.enumerated() {
-                interactionFeedback.showTooltip("测试tooltip \(index)", at: location, in: testView)
-                interactionFeedback.hideTooltip()
-            }
-        }
-    }
-    
-    func testHighlightPerformance() throws {
-        let testRects = (0..<50).map { i in
-            let testNode = FileNode(name: "perf_test_\(i)", path: "/test/perf_\(i)", size: Int64(i * 1000), isDirectory: i % 2 == 0)
-            return TreeMapRect(
-                node: testNode,
-                rect: CGRect(x: i * 10, y: i * 10, width: 50, height: 40),
-                color: i % 2 == 0 ? NSColor.blue : NSColor.orange
+        for location in extremeLocations {
+            let event = InteractionEvent(
+                type: .mouseMove,
+                location: location,
+                timestamp: Date()
             )
+            
+            XCTAssertNoThrow(interactionManager.handleEvent(event))
+            XCTAssertEqual(interactionManager.getLastEvent()?.location, location)
         }
+    }
+    
+    func testRapidStateChanges() throws {
+        let eventTypes: [InteractionEventType] = [
+            .mouseEnter, .mouseMove, .leftClick, .dragStart, .dragEnd, .mouseExit
+        ]
         
-        measure {
-            for rect in testRects {
-                interactionFeedback.setHighlight(rect, in: testView)
-                interactionFeedback.setHighlight(nil, in: testView)
+        for _ in 0..<100 {
+            for eventType in eventTypes {
+                let event = InteractionEvent(
+                    type: eventType,
+                    location: CGPoint(x: 100, y: 100),
+                    timestamp: Date()
+                )
+                
+                XCTAssertNoThrow(interactionManager.handleEvent(event))
             }
         }
+        
+        // 最终应该是idle状态（因为最后一个事件是mouseExit）
+        XCTAssertEqual(interactionManager.getCurrentState(), .idle)
     }
     
-    // MARK: - Error Handling Tests
-    
-    func testInvalidMouseEvent() throws {
-        // 测试处理无效的鼠标事件
-        let invalidEvent = NSEvent.mouseEvent(
-            with: .otherMouseDown,
-            location: CGPoint(x: -100, y: -100),
-            modifierFlags: [],
-            timestamp: 0,
-            windowNumber: 0,
-            context: nil,
-            eventNumber: 0,
-            clickCount: 1,
-            pressure: 1.0
-        )
+    func testConcurrentAccess() throws {
+        let expectation = XCTestExpectation(description: "Concurrent access")
+        expectation.expectedFulfillmentCount = 10
         
-        if let event = invalidEvent {
-            XCTAssertNoThrow(interactionFeedback.handleMouseEvent(event, in: testView), "处理无效鼠标事件不应该抛出异常")
+        for i in 0..<10 {
+            DispatchQueue.global().async {
+                let event = InteractionEvent(
+                    type: .mouseMove,
+                    location: CGPoint(x: i * 10, y: i * 10),
+                    timestamp: Date()
+                )
+                
+                self.interactionManager.handleEvent(event)
+                _ = self.interactionManager.getCurrentState()
+                _ = self.interactionManager.getLastEvent()
+                
+                expectation.fulfill()
+            }
         }
+        
+        wait(for: [expectation], timeout: 2.0)
     }
     
-    func testNilViewHandling() throws {
-        let location = CGPoint(x: 100, y: 100)
-        let text = "测试nil视图"
+    // MARK: - Integration Tests
+    
+    func testCompleteInteractionWorkflow() throws {
+        // 模拟完整的用户交互工作流
         
-        // 创建一个临时视图然后设为nil
-        var tempView: NSView? = NSView(frame: NSRect(x: 0, y: 0, width: 100, height: 100))
+        // 1. 鼠标进入
+        let enterEvent = InteractionEvent(type: .mouseEnter, location: CGPoint(x: 100, y: 100), timestamp: Date())
+        interactionManager.handleEvent(enterEvent)
+        XCTAssertEqual(interactionManager.getCurrentState(), .hovering)
         
-        // 在视图存在时显示tooltip
-        if let view = tempView {
-            XCTAssertNoThrow(interactionFeedback.showTooltip(text, at: location, in: view), "在有效视图中显示tooltip不应该抛出异常")
-        }
+        // 2. 鼠标移动
+        let moveEvent = InteractionEvent(type: .mouseMove, location: CGPoint(x: 110, y: 110), timestamp: Date())
+        interactionManager.handleEvent(moveEvent)
+        XCTAssertEqual(interactionManager.getCurrentState(), .hovering)
         
-        tempView = nil
+        // 3. 左键点击
+        let clickEvent = InteractionEvent(type: .leftClick, location: CGPoint(x: 110, y: 110), timestamp: Date())
+        interactionManager.handleEvent(clickEvent)
+        XCTAssertEqual(interactionManager.getCurrentState(), .clicking)
         
-        // 隐藏tooltip应该仍然工作
-        XCTAssertNoThrow(interactionFeedback.hideTooltip(), "隐藏tooltip不应该抛出异常")
+        // 4. 开始拖拽
+        let dragStartEvent = InteractionEvent(type: .dragStart, location: CGPoint(x: 110, y: 110), timestamp: Date())
+        interactionManager.handleEvent(dragStartEvent)
+        XCTAssertEqual(interactionManager.getCurrentState(), .dragging)
+        
+        // 5. 拖拽移动
+        let dragMoveEvent = InteractionEvent(type: .dragMove, location: CGPoint(x: 150, y: 150), timestamp: Date())
+        interactionManager.handleEvent(dragMoveEvent)
+        XCTAssertEqual(interactionManager.getCurrentState(), .dragging)
+        
+        // 6. 结束拖拽
+        let dragEndEvent = InteractionEvent(type: .dragEnd, location: CGPoint(x: 200, y: 200), timestamp: Date())
+        interactionManager.handleEvent(dragEndEvent)
+        XCTAssertEqual(interactionManager.getCurrentState(), .idle)
+        
+        // 7. 鼠标离开
+        let exitEvent = InteractionEvent(type: .mouseExit, location: CGPoint(x: 250, y: 250), timestamp: Date())
+        interactionManager.handleEvent(exitEvent)
+        XCTAssertEqual(interactionManager.getCurrentState(), .idle)
+        
+        // 验证最后一个事件
+        XCTAssertEqual(interactionManager.getLastEvent()?.type, .mouseExit)
+        XCTAssertEqual(interactionManager.getLastEvent()?.location, CGPoint(x: 250, y: 250))
     }
 }
